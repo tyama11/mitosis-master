@@ -38,12 +38,18 @@ const ONI_BOARD_GENERATOR = (() => {
     }
 
     function generateRandomBoardInternal(opts) {
-        const useLinear = Math.random() < 0.5;
         const swapMitosisPair = Math.random() < 0.5;
+        const roll = Math.random();
 
-        if (useLinear) {
+        // 3パターンを均等にランダム出題：①横一直線（左→右）、②縦一直線（上→下）、③回転した円
+        if (roll < 1 / 3) {
             const offset = Math.floor(Math.random() * LINEAR_SEQ.length);
             return buildShiftedLinearSvg(opts, offset, swapMitosisPair);
+        }
+
+        if (roll < 2 / 3) {
+            const offset = Math.floor(Math.random() * LINEAR_SEQ.length);
+            return buildShiftedVerticalLinearSvg(opts, offset, swapMitosisPair);
         }
 
         const orientations = ['right', 'bottom', 'left', 'top'];
@@ -209,6 +215,124 @@ const ONI_BOARD_GENERATOR = (() => {
             ${renderBoxNode(leftPairId, opts, mitoX - 70, topY, 104, 56, 19)}
             ${renderBoxNode(rightPairId, opts, mitoX + 70, topY, 104, 56, 19)}
             ${rowBoxes}
+        `;
+    }
+
+    // ======== 1-B. 開始位置をランダムにずらした縦一直線（上→下のみ）の図 ========
+    function buildShiftedVerticalLinearSvg(opts, offset, swapMitosisPair) {
+        const seq = LINEAR_SEQ.map((_, i) => LINEAR_SEQ[(offset + i) % LINEAR_SEQ.length]);
+        const ys = seq.map((_, i) => 54 + i * 72);
+        const colX = 525;
+
+        const runs = [];
+        seq.forEach((id, idx) => {
+            const group = INTERPHASE_SET.has(id) ? 'inter' : 'mito';
+            const prev = runs[runs.length - 1];
+            if (prev && prev.group === group) {
+                prev.end = idx;
+                prev.len++;
+            } else {
+                runs.push({ group, start: idx, end: idx, len: 1 });
+            }
+        });
+
+        const interRuns = runs.filter((r) => r.group === 'inter');
+        const mitoRuns = runs.filter((r) => r.group === 'mito');
+        const mainInter = interRuns.reduce((a, b) => (a.len >= b.len ? a : b));
+        const mainMito = mitoRuns.reduce((a, b) => (a.len >= b.len ? a : b));
+
+        let interY = (ys[mainInter.start] + ys[mainInter.end]) / 2;
+        let mitoY = (ys[mainMito.start] + ys[mainMito.end]) / 2;
+
+        if (Math.abs(interY - mitoY) < 140) {
+            if (interY <= mitoY) {
+                interY = Math.max(110, Math.min(interY, 200));
+                mitoY = Math.max(interY + 150, Math.min(mitoY, 430));
+            } else {
+                mitoY = Math.max(110, Math.min(mitoY, 200));
+                interY = Math.min(430, Math.max(mitoY + 150, interY));
+            }
+        }
+        interY = Math.max(95, Math.min(445, interY));
+        mitoY = Math.max(95, Math.min(445, mitoY));
+
+        const bracketX = 416;
+        const interBoxX = 220;
+        const mitoCenterX = 212;
+
+        // 縦方向の括弧パス（上下端をまたぐ場合はオープン括弧で表現）
+        const bracketPaths = [];
+        runs.forEach((run) => {
+            const isWrappedTop = runs.length === 3 && run.start === 0;
+            const isWrappedBottom = runs.length === 3 && run.end === 6;
+            const topY = isWrappedTop ? 12 : ys[run.start] - 18;
+            const bottomY = isWrappedBottom ? 528 : ys[run.end] + 18;
+            const stroke = run.group === 'inter' ? '#64748B' : '#475569';
+
+            if (isWrappedTop) {
+                bracketPaths.push(`<path d="M ${bracketX} ${topY} L ${bracketX} ${bottomY} L 452 ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
+            } else if (isWrappedBottom) {
+                bracketPaths.push(`<path d="M 452 ${topY} L ${bracketX} ${topY} L ${bracketX} ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
+            } else {
+                bracketPaths.push(`<path d="M 452 ${topY} L ${bracketX} ${topY} L ${bracketX} ${bottomY} L 452 ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
+            }
+        });
+
+        // 左側のまとめボックスから縦括弧への接続線
+        const connectors = [];
+        interRuns.forEach((run) => {
+            const midY = (ys[run.start] + ys[run.end]) / 2;
+            if (run === mainInter) {
+                connectors.push(`<path d="M ${interBoxX + 54} ${interY} L 374 ${interY} L 374 ${midY} L ${bracketX} ${midY}" fill="none" stroke="#64748B" stroke-width="2.2" />`);
+            } else {
+                const edgeY = run.start === 0 ? 18 : 522;
+                connectors.push(`<path d="M ${interBoxX - 54} ${interY} L 42 ${interY} L 42 ${edgeY} L ${bracketX} ${edgeY}" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />`);
+            }
+        });
+
+        mitoRuns.forEach((run) => {
+            const midY = (ys[run.start] + ys[run.end]) / 2;
+            if (run === mainMito) {
+                connectors.push(`<path d="M ${mitoCenterX + 122} ${mitoY} L 374 ${mitoY} L 374 ${midY} L ${bracketX} ${midY}" fill="none" stroke="#475569" stroke-width="2.2" />`);
+            } else {
+                const edgeY = run.start === 0 ? 18 : 522;
+                connectors.push(`<path d="M ${mitoCenterX - 122} ${mitoY} L 42 ${mitoY} L 42 ${edgeY} L ${bracketX} ${edgeY}" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />`);
+            }
+        });
+
+        // 上から下への進行矢印（↓のみ）
+        const arrows = [];
+        if (offset > 0) {
+            arrows.push(`<line x1="${colX}" y1="6" x2="${colX}" y2="25" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-v-arrow)" />`);
+        }
+        for (let i = 0; i < 6; i++) {
+            arrows.push(`<line x1="${colX}" y1="${ys[i] + 24}" x2="${colX}" y2="${ys[i + 1] - 26}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-v-arrow)" />`);
+        }
+        if (offset > 0) {
+            arrows.push(`<line x1="${colX}" y1="511" x2="${colX}" y2="531" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-v-arrow)" />`);
+        }
+
+        const leftPairId = swapMitosisPair ? 'mitosis' : 'm';
+        const rightPairId = swapMitosisPair ? 'm' : 'mitosis';
+
+        const colBoxes = seq.map((stageId, i) =>
+            renderBoxNode(stageId, opts, colX, ys[i], 116, 44, 17)
+        ).join('');
+
+        return `
+            <defs>
+                <marker id="oni-v-arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto">
+                    <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#64748B" />
+                </marker>
+            </defs>
+            ${bracketPaths.join('')}
+            ${connectors.join('')}
+            ${arrows.join('')}
+            <text x="${mitoCenterX}" y="${mitoY + 8}" text-anchor="middle" font-size="22" font-weight="900" fill="#475569">＝</text>
+            ${renderBoxNode('interphase', opts, interBoxX, interY, 108, 52, 18)}
+            ${renderBoxNode(leftPairId, opts, mitoCenterX - 70, mitoY, 104, 52, 18)}
+            ${renderBoxNode(rightPairId, opts, mitoCenterX + 70, mitoY, 104, 52, 18)}
+            ${colBoxes}
         `;
     }
 
