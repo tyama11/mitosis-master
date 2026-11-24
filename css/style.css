@@ -364,12 +364,12 @@ body {
     overflow: hidden;
 }
 
+/* SVGの表示領域とピン配置レイヤーを1pxのズレもなく完全一致させる */
 .graph-wrapper {
     position: relative;
-    display: inline-block;
-    width: min(100%, 620px);
+    width: min(100%, calc(68vh * 600 / 540), 620px);
+    height: auto;
     aspect-ratio: 600 / 540;
-    max-height: 68vh;
     cursor: pointer;
 }
 
@@ -377,8 +377,27 @@ body {
     display: block;
     width: 100%;
     height: 100%;
-    pointer-events: none;
     user-select: none;
+}
+
+/* ステージボックスのホバー・ターゲット拡大演出 */
+.stage-node {
+    cursor: pointer;
+}
+
+.stage-visual {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease;
+}
+
+.stage-node:hover .stage-visual,
+.stage-node.active-target .stage-visual {
+    transform: scale(1.1);
+    filter: drop-shadow(0 8px 14px rgba(13, 148, 136, 0.25));
+}
+
+.stage-node:hover .stage-box,
+.stage-node.active-target .stage-box {
+    stroke-width: 3.8;
 }
 
 /* 難易度に応じた図中テキスト制御 */
@@ -391,9 +410,15 @@ body {
     display: none;
 }
 
-.graph-wrapper.no-subhints .stage-node rect {
+.graph-wrapper.no-subhints .stage-node .stage-box {
     fill: #F8FAFC;
     stroke: #64748B;
+}
+
+.graph-wrapper.no-subhints .stage-node:hover .stage-box,
+.graph-wrapper.no-subhints .stage-node.active-target .stage-box {
+    fill: #F0FDFA;
+    stroke: #0D9488;
 }
 
 .graph-wrapper.no-subhints .stage-num,
@@ -411,9 +436,10 @@ body {
     display: block;
 }
 
-.drop-zone {
+.pins-layer {
     position: absolute;
     inset: 0;
+    pointer-events: none;
     z-index: 5;
 }
 
@@ -495,8 +521,8 @@ body {
 .bio-card.selected {
     border-color: var(--primary);
     background: #F0FDFA;
-    transform: scale(0.98);
-    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.28);
+    transform: scale(1.02);
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.2), 0 0 0 3px rgba(13, 148, 136, 0.28);
 }
 
 .cell-thumb {
@@ -510,6 +536,18 @@ body {
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bio-card:hover .cell-thumb {
+    transform: scale(1.06);
+    border-color: var(--primary);
+}
+
+.bio-card.selected .cell-thumb {
+    transform: scale(1.14);
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
 }
 
 .cell-thumb svg {
@@ -809,9 +847,8 @@ body {
         gap: 10px;
     }
     .graph-wrapper {
-        max-height: 45vh;
-        width: auto;
-        max-width: 100%;
+        width: min(100%, calc(45vh * 600 / 540));
+        height: auto;
     }
     .tray {
         width: 100%;

@@ -45,6 +45,7 @@
         scoreText: document.getElementById('score-text'),
         progressFill: document.getElementById('progress-fill'),
         graphWrapper: document.getElementById('graph-wrapper'),
+        stageNodes: document.querySelectorAll('.stage-node'),
         dropZone: document.getElementById('drop-zone'),
         cardList: document.getElementById('card-list'),
         toast: document.getElementById('toast'),
@@ -78,17 +79,36 @@
             startGame(state.difficulty);
         });
 
-        els.dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
+        // ボード上のホバー・ドラッグ拡大ハイライトとドロップ／タップ判定
+        els.graphWrapper.addEventListener('mousemove', (e) => {
+            const node = findStageNodeAtPoint(e.clientX, e.clientY);
+            setActiveStageHighlight(node);
         });
 
-        els.dropZone.addEventListener('drop', (e) => {
+        els.graphWrapper.addEventListener('mouseleave', () => {
+            setActiveStageHighlight(null);
+        });
+
+        els.graphWrapper.addEventListener('dragover', (e) => {
             e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const node = findStageNodeAtPoint(e.clientX, e.clientY);
+            setActiveStageHighlight(node);
+        });
+
+        els.graphWrapper.addEventListener('dragleave', (e) => {
+            if (!els.graphWrapper.contains(e.relatedTarget)) {
+                setActiveStageHighlight(null);
+            }
+        });
+
+        els.graphWrapper.addEventListener('drop', (e) => {
+            e.preventDefault();
+            setActiveStageHighlight(null);
             handlePlacementAttempt(e.clientX, e.clientY);
         });
 
-        els.dropZone.addEventListener('click', (e) => {
+        els.graphWrapper.addEventListener('click', (e) => {
             handlePlacementAttempt(e.clientX, e.clientY);
         });
 
@@ -412,27 +432,62 @@
         });
     }
 
+    // ======== ステージボックス検出＆ハイライト ========
+    function findStageNodeAtPoint(clientX, clientY) {
+        const directEl = document.elementFromPoint(clientX, clientY);
+        const directNode = directEl ? directEl.closest('.stage-node') : null;
+        if (directNode) return directNode;
+
+        // 指タップ等でボックス境界のすぐ近くを押した場合も吸着させる
+        const pad = 16;
+        let closest = null;
+        let bestDist = Infinity;
+
+        els.stageNodes.forEach((node) => {
+            const box = node.querySelector('.stage-box');
+            if (!box) return;
+            const r = box.getBoundingClientRect();
+            if (
+                clientX >= r.left - pad &&
+                clientX <= r.right + pad &&
+                clientY >= r.top - pad &&
+                clientY <= r.bottom + pad
+            ) {
+                const cx = (r.left + r.right) / 2;
+                const cy = (r.top + r.bottom) / 2;
+                const dist = Math.hypot(clientX - cx, clientY - cy);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    closest = node;
+                }
+            }
+        });
+
+        return closest;
+    }
+
+    function setActiveStageHighlight(activeNode) {
+        els.stageNodes.forEach((node) => {
+            node.classList.toggle('active-target', node === activeNode);
+        });
+    }
+
     // ======== 配置判定 ========
     function handlePlacementAttempt(clientX, clientY) {
         if (!state.isPlaying || !state.selectedItemId) return;
 
-        const rect = els.dropZone.getBoundingClientRect();
-        const px = ((clientX - rect.left) / rect.width) * 100;
-        const py = ((clientY - rect.top) / rect.height) * 100;
+        const targetNode = findStageNodeAtPoint(clientX, clientY);
+        if (!targetNode) return;
 
         const itemIndex = state.items.findIndex((entry) => entry.id === state.selectedItemId);
         if (itemIndex === -1) return;
         const item = state.items[itemIndex];
 
-        const matchedTarget = item.targets.find((target) => {
-            const rx = target.rx ?? 14;
-            const ry = target.ry ?? 11;
-            return Math.abs(px - target.x) < rx && Math.abs(py - target.y) < ry;
-        });
+        const isCorrect = targetNode.dataset.stage === item.stageId;
 
-        if (matchedTarget) {
+        if (isCorrect) {
             state.score++;
-            placePinOnBoard(item, matchedTarget.x, matchedTarget.y);
+            placePinOnBoard(item, targetNode);
 
             if (state.difficulty === 'oni') {
                 const replacement = pickNextOniItem();
@@ -464,18 +519,26 @@
     }
 
     // ======== ボード上に正解ピンを配置 ========
-    function placePinOnBoard(item, baseX, baseY) {
+    function placePinOnBoard(item, targetNode) {
         const isOni = state.difficulty === 'oni';
         const isAdvanced = state.difficulty === 'normal' || isOni;
 
-        let pinX = baseX;
-        let pinY = baseY + 5;
+        // 対象ステージボックスの実際の画面座標から正確な%位置を算出
+        const wrapperRect = els.graphWrapper.getBoundingClientRect();
+        const boxEl = targetNode.querySelector('.stage-box') || targetNode;
+        const boxRect = boxEl.getBoundingClientRect();
+
+        const centerX = ((boxRect.left + boxRect.width / 2 - wrapperRect.left) / wrapperRect.width) * 100;
+        const centerY = ((boxRect.top + boxRect.height / 2 - wrapperRect.top) / wrapperRect.height) * 100;
+
+        let pinX = centerX;
+        let pinY = centerY + 6.5;
 
         if (!isOni) {
             const count = state.stagePlacedCount[item.stageId] || 0;
             state.stagePlacedCount[item.stageId] = count + 1;
-            // 各時期2問ずつなので左右に少しずらして見やすく配置
-            pinX = baseX + (count === 0 ? -5.5 : 5.5);
+            // 各時期2問ずつなのでボックス下辺の左右に並べて配置
+            pinX = centerX + (count === 0 ? -6.5 : 6.5);
         }
 
         const pin = document.createElement('div');
