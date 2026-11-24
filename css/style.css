@@ -449,6 +449,27 @@ body {
     fill: #115E59;
 }
 
+/* 細胞周期「おに」の1箇所だけの空欄（？）強調演出 */
+.stage-node.oni-target-blank .oni-focus-box {
+    fill: #FEF3C7;
+    stroke: #F59E0B;
+    stroke-width: 3.5;
+}
+
+.stage-node.oni-target-blank .stage-mystery {
+    display: block;
+    fill: #B45309;
+}
+
+.stage-node.oni-target-blank .stage-visual {
+    animation: oniBlankPulse 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes oniBlankPulse {
+    from { transform: scale(1); filter: drop-shadow(0 3px 8px rgba(245, 158, 11, 0.25)); }
+    to { transform: scale(1.08); filter: drop-shadow(0 6px 14px rgba(245, 158, 11, 0.45)); }
+}
+
 .pins-layer {
     position: absolute;
     inset: 0;

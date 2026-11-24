@@ -85,7 +85,7 @@ const CATEGORY_CONFIG = {
         trayTitle: '🔄 周期カード',
         description: 'カードを選んで、細胞周期の正しい位置に当てはめよう！',
         startToast: '🔄 カードを選んで、正しい枠をタップしてね',
-        oniToast: ''
+        oniToast: '👹 60秒タイムアタック開始！ミスは-5秒！'
     },
     sketch: {
         label: '🔬 細胞スケッチ',

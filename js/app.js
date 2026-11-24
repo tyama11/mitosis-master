@@ -12,6 +12,7 @@
         score: 0,
         totalQuestions: 10,
         selectedItemId: null,
+        currentOniTargetStageId: null,
         items: [],
         stagePlacedCount: {},
         nextItemUid: 0,
@@ -31,12 +32,14 @@
         homeDesc: document.getElementById('home-desc'),
         ruleOniItem: document.getElementById('rule-oni-item'),
         btnOni: document.getElementById('btn-oni'),
+        tabScoreCycle: document.getElementById('tab-score-cycle'),
         tabScoreSketch: document.getElementById('tab-score-sketch'),
         categoryTabs: document.querySelectorAll('.category-tab'),
         modeButtons: document.querySelectorAll('.mode-btn'),
         homeBtn: document.getElementById('home-btn'),
         modeDisplay: document.getElementById('mode-display'),
         trayTitleText: document.getElementById('tray-title-text'),
+        trayHint: document.getElementById('tray-hint'),
         progressContainer: document.getElementById('progress-container'),
         timerBadge: document.getElementById('timer-badge'),
         timerText: document.getElementById('timer-text'),
@@ -45,6 +48,7 @@
         graphWrapper: document.getElementById('graph-wrapper'),
         linearSvg: document.getElementById('linear-svg'),
         circleSvg: document.getElementById('circle-svg'),
+        oniCycleSvg: document.getElementById('oni-cycle-svg'),
         dropZone: document.getElementById('drop-zone'),
         cardList: document.getElementById('card-list'),
         toast: document.getElementById('toast'),
@@ -57,7 +61,12 @@
         overlayHomeBtn: document.getElementById('overlay-home-btn')
     };
 
+    function isCycleOniMode() {
+        return state.category === 'cycle' && state.difficulty === 'oni';
+    }
+
     function getActiveSvg() {
+        if (isCycleOniMode()) return els.oniCycleSvg;
         return state.difficulty === 'easy' ? els.linearSvg : els.circleSvg;
     }
 
@@ -124,27 +133,32 @@
     }
 
     // ======== 学習カテゴリ切替＆記録管理 ========
-    function getOniBestKey() {
-        return 'mitosis-master-oni-best-sketch';
+    function getOniBestKey(category) {
+        return `mitosis-master-oni-best-${category}`;
     }
 
-    function getOniUnlockKey() {
-        return 'mitosis-master-oni-unlocked-sketch';
+    function getOniUnlockKey(category) {
+        return `mitosis-master-oni-unlocked-${category}`;
     }
 
     function isOniUnlocked(category) {
-        // 細胞周期タブでは「おに」は不要（細胞スケッチタブのみ）
-        return category === 'sketch' && localStorage.getItem(getOniUnlockKey()) === 'true';
+        return localStorage.getItem(getOniUnlockKey(category)) === 'true';
     }
 
     function updateTabScores() {
-        const saved = localStorage.getItem(getOniBestKey());
-        if (saved !== null) {
-            els.tabScoreSketch.textContent = `👹 ${saved}問`;
-            els.tabScoreSketch.hidden = false;
-        } else {
-            els.tabScoreSketch.hidden = true;
-        }
+        const entries = [
+            { category: 'cycle', el: els.tabScoreCycle },
+            { category: 'sketch', el: els.tabScoreSketch }
+        ];
+        entries.forEach(({ category, el }) => {
+            const saved = localStorage.getItem(getOniBestKey(category));
+            if (saved !== null) {
+                el.textContent = `👹 ${saved}問`;
+                el.hidden = false;
+            } else {
+                el.hidden = true;
+            }
+        });
     }
 
     function updateDifficultyVisibility(animateReveal = false) {
@@ -174,6 +188,7 @@
         state.difficulty = difficulty;
         state.score = 0;
         state.selectedItemId = null;
+        state.currentOniTargetStageId = null;
         state.stagePlacedCount = {};
         state.nextItemUid = 0;
         state.timeLeft = ONI_TIME_LIMIT;
@@ -184,10 +199,12 @@
         const isEasy = difficulty === 'easy';
         const isOni = difficulty === 'oni';
         const isSketch = state.category === 'sketch';
+        const useCycleOniBoard = isCycleOniMode();
 
-        // かんたん＝一直線の図、ふつう・おに＝円の周期図
-        els.linearSvg.classList.toggle('active-board', isEasy);
-        els.circleSvg.classList.toggle('active-board', !isEasy);
+        // ボード表示切り替え
+        els.linearSvg.classList.toggle('active-board', !useCycleOniBoard && isEasy);
+        els.circleSvg.classList.toggle('active-board', !useCycleOniBoard && !isEasy);
+        els.oniCycleSvg.classList.toggle('active-board', useCycleOniBoard);
 
         els.graphWrapper.classList.toggle('sketch-mode', isSketch);
         els.progressContainer.classList.toggle('oni-active', isOni);
@@ -196,38 +213,48 @@
         els.progressFill.classList.toggle('timer-fill', isOni);
         els.progressFill.classList.remove('urgent');
 
-        setupBoardNodes(state.category, difficulty);
+        const categoryConfig = CATEGORY_CONFIG[state.category];
+        els.modeDisplay.textContent = `${categoryConfig.label} / ${DIFFICULTY_LABELS[difficulty]}`;
 
-        if (isOni) {
-            state.items = buildInitialOniItems();
+        if (useCycleOniBoard) {
+            els.trayTitleText.textContent = '❓ ？に入るのは？';
+            els.trayHint.textContent = '👆タップで回答';
+            setupNextCycleOniQuestion();
             updateOniHud();
             startOniTimer();
+        } else if (isOni) {
+            // スケッチ「おに」
+            els.trayTitleText.textContent = categoryConfig.trayTitle;
+            els.trayHint.textContent = '👆タップで選択';
+            setupStaticBoardNodes(state.category, difficulty);
+            state.items = buildInitialSketchOniItems();
+            updateOniHud();
+            startOniTimer();
+            renderCards();
         } else {
+            // かんたん・ふつう
+            els.trayTitleText.textContent = categoryConfig.trayTitle;
+            els.trayHint.textContent = '👆タップで選択';
+            setupStaticBoardNodes(state.category, difficulty);
             state.items = buildStandardItems(state.category);
             state.totalQuestions = state.items.length;
             shuffleArray(state.items);
             updateStandardProgress();
+            renderCards();
         }
-
-        const categoryConfig = CATEGORY_CONFIG[state.category];
-        els.modeDisplay.textContent = `${categoryConfig.label} / ${DIFFICULTY_LABELS[difficulty]}`;
-        els.trayTitleText.textContent = categoryConfig.trayTitle;
 
         els.homeScreen.classList.remove('active');
         els.gameScreen.classList.add('active');
 
         showToast(isOni ? categoryConfig.oniToast : categoryConfig.startToast);
-        renderCards();
     }
 
-    function setupBoardNodes(category, difficulty) {
+    function setupStaticBoardNodes(category, difficulty) {
         const isOni = difficulty === 'oni';
 
         [els.linearSvg, els.circleSvg].forEach((svg) => {
             svg.querySelectorAll('.stage-node').forEach((node) => {
-                clearTimeout(node._revealTimer);
                 node.classList.remove('solved', 'active-target', 'interactive-target', 'masked');
-
                 const labelEl = node.querySelector('.stage-label');
                 if (labelEl && node.dataset.defaultLabel) {
                     labelEl.textContent = node.dataset.defaultLabel;
@@ -237,10 +264,8 @@
 
         getActiveStageNodes().forEach((node) => {
             if (category === 'cycle') {
-                // 細胞周期モード：全10箇所を「？」にして回答させる
                 node.classList.add('interactive-target', 'masked');
             } else {
-                // 細胞スケッチモード：間期＋前期〜終期の5箇所のみターゲット
                 const isSketchTarget = node.classList.contains('sketch-target');
                 node.classList.toggle('interactive-target', isSketchTarget);
                 node.classList.toggle('masked', isOni);
@@ -248,7 +273,50 @@
         });
     }
 
-    // ======== 問題アイテム生成 ========
+    // ======== 細胞周期「おに」：ランダム回転・シフト＆1箇所だけ空欄の問題生成 ========
+    function setupNextCycleOniQuestion() {
+        const candidates = CYCLE_ITEMS.filter((c) => c.stageId !== state.currentOniTargetStageId);
+        const correctEntry = candidates[Math.floor(Math.random() * candidates.length)];
+        state.currentOniTargetStageId = correctEntry.stageId;
+        state.selectedItemId = null;
+
+        // ランダムに「回転した円」または「開始位置をずらした一直線」の図を生成（他9箇所は埋めて1箇所だけ？）
+        els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomCycleBoardSvg(correctEntry.stageId);
+
+        // 正解1枚＋ダミー2枚の計3枚カードを生成
+        const distractorPool = CYCLE_ITEMS.filter((c) => c.stageId !== correctEntry.stageId);
+        shuffleArray(distractorPool);
+        const choices = [correctEntry, ...distractorPool.slice(0, ONI_TRAY_SIZE - 1)].map((entry) => ({
+            id: `item-${state.nextItemUid++}`,
+            stageId: entry.stageId,
+            stageName: entry.name,
+            kind: 'cycle',
+            name: entry.name
+        }));
+        shuffleArray(choices);
+        state.items = choices;
+
+        renderCards();
+    }
+
+    function submitCycleOniAnswer(item) {
+        if (!state.isPlaying) return;
+
+        if (item.stageId === state.currentOniTargetStageId) {
+            state.score++;
+            updateOniHud();
+            showToast(`⭕ 正解！ ${item.name}`);
+            setupNextCycleOniQuestion();
+        } else {
+            showToast(`❌ ミス！ -${ONI_PENALTY_SECONDS}秒`);
+            const ended = applyOniTimePenalty();
+            if (!ended) {
+                setupNextCycleOniQuestion();
+            }
+        }
+    }
+
+    // ======== 通常・スケッチおに問題生成 ========
     function buildStandardItems(category) {
         if (category === 'cycle') {
             return CYCLE_ITEMS.map((entry) => ({
@@ -293,13 +361,13 @@
         };
     }
 
-    function buildInitialOniItems() {
+    function buildInitialSketchOniItems() {
         const pool = [...SKETCH_STAGES];
         shuffleArray(pool);
         return pool.slice(0, ONI_TRAY_SIZE).map(createOniItemForSketch);
     }
 
-    function pickNextOniItem() {
+    function pickNextSketchOniItem() {
         const activeStageIds = new Set(state.items.map((item) => item.stageId));
         const candidates = SKETCH_STAGES.filter((stage) => !activeStageIds.has(stage.id));
         const source = candidates.length > 0 ? candidates : SKETCH_STAGES;
@@ -367,12 +435,13 @@
         els.progressFill.style.width = `${percent}%`;
     }
 
-    // ======== カード一覧の描画（説明文なし） ========
+    // ======== カード一覧の描画 ========
     function renderCards() {
         els.cardList.innerHTML = '';
 
         const isOni = state.difficulty === 'oni';
         const isAdvanced = state.difficulty === 'normal' || isOni;
+        const cycleOni = isCycleOniMode();
 
         state.items.forEach((item) => {
             const card = document.createElement('div');
@@ -414,6 +483,11 @@
 
             card.addEventListener('click', () => {
                 if (!state.isPlaying) return;
+                if (cycleOni) {
+                    // 1箇所だけ空欄の細胞周期「おに」ではカードタップで即回答
+                    submitCycleOniAnswer(item);
+                    return;
+                }
                 state.selectedItemId = isSelected ? null : item.id;
                 renderCards();
             });
@@ -422,7 +496,9 @@
                 if (!state.isPlaying) return;
                 state.selectedItemId = item.id;
                 e.dataTransfer.effectAllowed = 'move';
-                setTimeout(renderCards, 0);
+                if (!cycleOni) {
+                    setTimeout(renderCards, 0);
+                }
             });
 
             els.cardList.appendChild(card);
@@ -481,7 +557,12 @@
         if (itemIndex === -1) return;
         const item = state.items[itemIndex];
 
-        // M期と分裂期は左右どちらに入れても正解とする (data-accept="m,mitosis")
+        // 細胞周期「おに」で「？」枠にドラッグ＆ドロップした場合も対応
+        if (isCycleOniMode()) {
+            submitCycleOniAnswer(item);
+            return;
+        }
+
         const acceptedIds = (targetNode.dataset.accept || targetNode.dataset.stage || '').split(',');
         const isCorrect = acceptedIds.includes(item.stageId);
 
@@ -490,7 +571,7 @@
             handleCorrectVisual(item, targetNode);
 
             if (state.difficulty === 'oni') {
-                const replacement = pickNextOniItem();
+                const replacement = pickNextSketchOniItem();
                 state.items.splice(itemIndex, 1, replacement);
                 updateOniHud();
                 showToast(`⭕ 正解！ ${item.stageName}`);
@@ -524,7 +605,6 @@
         const isOni = state.difficulty === 'oni';
 
         if (item.kind === 'cycle') {
-            // 置いたカードの名称（M期／分裂期を逆に入れた場合もそのまま）を枠に表示
             const labelEl = targetNode.querySelector('.stage-label');
             if (labelEl) {
                 labelEl.textContent = item.name;
@@ -534,7 +614,6 @@
             return;
         }
 
-        // 細胞スケッチモード：該当ステージにミニ細胞ピンを配置
         const isAdvanced = state.difficulty === 'normal' || isOni;
         const wrapperRect = els.graphWrapper.getBoundingClientRect();
         const boxEl = targetNode.querySelector('.stage-box') || targetNode;
@@ -611,9 +690,9 @@
         let displayTime = 3500;
         let unlockHtml = '';
 
-        // 細胞スケッチタブの「ふつう」初回クリア時のみ「おに」解放
-        if (state.category === 'sketch' && state.difficulty === 'normal' && !isOniUnlocked('sketch')) {
-            localStorage.setItem(getOniUnlockKey(), 'true');
+        // 両タブとも「ふつう」初回クリアで「おに」解放
+        if (state.difficulty === 'normal' && !isOniUnlocked(state.category)) {
+            localStorage.setItem(getOniUnlockKey(state.category), 'true');
             state.justUnlockedOni = true;
             unlockHtml = '<div class="unlock-message">どこかでとびらがひらいたようだ…！</div>';
             displayTime = 4800;
@@ -637,7 +716,7 @@
         state.isPlaying = false;
         state.selectedItemId = null;
 
-        const storageKey = getOniBestKey();
+        const storageKey = getOniBestKey(state.category);
         const savedRaw = localStorage.getItem(storageKey);
         const prevBest = savedRaw === null ? -1 : Number(savedRaw);
         const isNewRecord = state.score > prevBest;

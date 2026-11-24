@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>体細胞分裂マスター</title>
-    <link rel="stylesheet" href="css/style.css?v=20261124-5">
+    <link rel="stylesheet" href="css/style.css?v=20261124-6">
 </head>
 <body>
 
@@ -22,6 +22,7 @@
                 data-category="cycle"
             >
                 <span>🔄 細胞周期で覚える</span>
+                <span class="tab-score" id="tab-score-cycle" hidden></span>
             </button>
             <button
                 type="button"
@@ -338,6 +339,15 @@
                     </g>
                 </svg>
 
+                <!-- ======== 細胞周期「おに」用：ランダム回転・シフト図 ======== -->
+                <svg
+                    id="oni-cycle-svg"
+                    class="board-svg"
+                    viewBox="0 0 700 540"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-label="おにモードの細胞周期問題図"
+                ></svg>
+
                 <div class="pins-layer" id="drop-zone"></div>
             </div>
         </section>
@@ -345,7 +355,7 @@
         <aside class="tray">
             <div class="tray-title">
                 <span id="tray-title-text">🔄 周期カード</span>
-                <span class="tray-hint">👆タップで選択</span>
+                <span class="tray-hint" id="tray-hint">👆タップで選択</span>
             </div>
             <div class="card-list" id="card-list"></div>
         </aside>
@@ -368,8 +378,9 @@
     </div>
 </div>
 
-<script src="js/cells.js?v=20261124-5" defer></script>
-<script src="js/data.js?v=20261124-5" defer></script>
-<script src="js/app.js?v=20261124-5" defer></script>
+<script src="js/cells.js?v=20261124-6" defer></script>
+<script src="js/oni-boards.js?v=20261124-6" defer></script>
+<script src="js/data.js?v=20261124-6" defer></script>
+<script src="js/app.js?v=20261124-6" defer></script>
 </body>
 </html>
