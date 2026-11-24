@@ -419,6 +419,7 @@
                 kind: 'cycle',
                 emoji: entry.emoji,
                 name: entry.name,
+                hint: entry.hint || '',
                 color: entry.color,
                 bg: entry.bg
             }));
@@ -436,6 +437,7 @@
                     rotated: false,
                     variant: 'standard',
                     label: sketch.cellType === 'plant' ? '植物細胞' : '動物細胞',
+                    hint: sketch.hint || '',
                     color: stage.color
                 });
             });
@@ -580,11 +582,15 @@
                 const labelText = isAdvanced
                     ? item.label
                     : (item.cellType === 'plant' ? '🌱 植物細胞' : '🐾 動物細胞');
+                const hintHtml = (!isAdvanced && item.hint)
+                    ? `<div class="hint">${item.hint}</div>`
+                    : '';
 
                 card.innerHTML = `
                     <div class="cell-thumb">${svgMarkup}</div>
                     <div class="info">
                         <div class="name">${labelText}</div>
+                        ${hintHtml}
                     </div>
                 `;
             } else if (isAdvanced) {
@@ -594,10 +600,12 @@
                     </div>
                 `;
             } else {
+                const hintHtml = item.hint ? `<div class="hint">${item.hint}</div>` : '';
                 card.innerHTML = `
                     <div class="feature-icon" style="background-color: ${item.bg}; border: 2px solid ${item.color};">${item.emoji}</div>
                     <div class="info">
                         <div class="name">${item.name}</div>
+                        ${hintHtml}
                     </div>
                 `;
             }
