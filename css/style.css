@@ -1,0 +1,872 @@
+/* ======== EdTech風 カラーパレット（顕微鏡・バイオロジーテーマ） ======== */
+:root {
+    --bg-color: #F2F9FB;
+    --primary: #0D9488;
+    --primary-hover: #0F766E;
+    --success: #0D9488;
+    --text-main: #334155;
+    --text-sub: #64748B;
+    --card-bg: #FFFFFF;
+    --border: #E2E8F0;
+
+    /* 難易度ごとのティールグラデーション */
+    --level-1: #5EEAD4; /* かんたん (薄ティール) */
+    --level-1-shadow: #0D9488;
+    --level-2: #0D9488; /* ふつう (ティール) */
+    --level-2-shadow: #115E59;
+    --level-4: #0F172A; /* おに (ダークネイビー) */
+    --level-4-shadow: #000000;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Nunito', 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', 'Quicksand', sans-serif;
+    margin: 0;
+    background: var(--bg-color);
+    color: var(--text-main);
+    overflow: hidden;
+    touch-action: manipulation;
+}
+
+/* ======== 画面切り替え ======== */
+.screen {
+    position: absolute;
+    width: 100%;
+    height: 100vh;
+    display: none;
+    flex-direction: column;
+}
+
+.screen.active {
+    display: flex;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ======== ホーム画面 ======== */
+#home-screen {
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at top right, #CCFBF1, #F0F9FF);
+}
+
+.start-card {
+    background: var(--card-bg);
+    padding: 32px 36px 36px;
+    border-radius: 24px;
+    box-shadow: 0 10px 25px rgba(13, 148, 136, 0.1);
+    max-width: 540px;
+    width: 92%;
+    text-align: center;
+    border: 2px solid var(--border);
+    max-height: 92vh;
+    overflow-y: auto;
+}
+
+/* 上部の学習モード切替タブ */
+.category-switcher {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    background: #F1F5F9;
+    padding: 5px;
+    border-radius: 14px;
+    margin-bottom: 22px;
+    border: 1px solid var(--border);
+}
+
+.category-tab {
+    border: none;
+    background: transparent;
+    color: var(--text-sub);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 10px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.category-tab:hover {
+    color: var(--text-main);
+}
+
+.category-tab.active {
+    background: var(--card-bg);
+    color: var(--primary-hover);
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.15);
+}
+
+.tab-score {
+    font-size: 14px;
+    font-weight: 800;
+    color: #115E59;
+    background: #99F6E4;
+    padding: 3px 12px;
+    border-radius: 999px;
+    line-height: 1.3;
+}
+
+.start-card h1 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 30px;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+}
+
+.desc {
+    color: var(--text-sub);
+    font-size: 15px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.rules {
+    text-align: left;
+    background: #F8FAFC;
+    padding: 16px;
+    border-radius: 16px;
+    margin-bottom: 22px;
+    border: 1px solid var(--border);
+}
+
+.rule-item {
+    margin-bottom: 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.4;
+}
+
+.rule-item:last-child {
+    margin-bottom: 0;
+}
+
+.rule-icon {
+    flex-shrink: 0;
+    font-size: 16px;
+}
+
+.mode-btn {
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 15px;
+    border: none;
+    border-radius: 16px;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.mode-btn:last-child {
+    margin-bottom: 0;
+}
+
+.btn-easy {
+    background: var(--level-1);
+    color: #134E4A;
+    box-shadow: 0 4px 0 var(--level-1-shadow);
+}
+.btn-easy:hover {
+    background: #2DD4BF;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--level-1-shadow);
+}
+
+.btn-normal {
+    background: var(--level-2);
+    color: white;
+    box-shadow: 0 4px 0 var(--level-2-shadow);
+}
+.btn-normal:hover {
+    background: #0F766E;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--level-2-shadow);
+}
+
+.btn-oni {
+    background: var(--level-4);
+    color: white;
+    box-shadow: 0 4px 0 var(--level-4-shadow);
+}
+.btn-oni:hover {
+    background: #000000;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--level-4-shadow);
+}
+
+.mode-btn:active {
+    transform: translateY(4px);
+    box-shadow: none;
+}
+
+/* ======== ゲーム画面ヘッダー ======== */
+.header {
+    height: 70px;
+    background: var(--card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    z-index: 10;
+}
+
+.progress-container {
+    flex: 1;
+    max-width: 520px;
+    margin: 0 15px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.timer-badge {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-main);
+    background: #F1F5F9;
+    padding: 6px 12px;
+    border-radius: 12px;
+    white-space: nowrap;
+    transition: background-color 0.2s, color 0.2s, transform 0.2s;
+}
+
+.timer-badge.urgent {
+    color: #DC2626;
+    background: #FEE2E2;
+    animation: pulseUrgent 0.8s ease-in-out infinite;
+}
+
+.timer-badge.penalty-flash {
+    color: #FFFFFF;
+    background: #EF4444;
+    transform: scale(1.12);
+}
+
+@keyframes pulseUrgent {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+}
+
+.progress-bar-bg {
+    flex: 1;
+    height: 12px;
+    background: #E2E8F0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--success);
+    width: 0%;
+    transition: width 0.4s ease-out;
+}
+
+.progress-bar-fill.timer-fill {
+    transition: width 0.2s linear;
+}
+
+.progress-bar-fill.urgent {
+    background: #EF4444;
+}
+
+.score-text {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--success);
+    min-width: 72px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.progress-container.oni-active .score-text {
+    font-size: 28px;
+    background: #F0FDFA;
+    padding: 4px 14px;
+    border-radius: 12px;
+    border: 2px solid #99F6E4;
+}
+
+.reset-btn {
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: transparent;
+    color: var(--text-sub);
+    font-family: inherit;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.reset-btn:hover {
+    background: #F1F5F9;
+    color: var(--text-main);
+}
+
+.reset-icon {
+    font-size: 16px;
+}
+
+.mode-display {
+    font-weight: bold;
+    color: var(--text-sub);
+    font-size: 14px;
+}
+
+.main {
+    display: flex;
+    flex: 1;
+    padding: 20px;
+    gap: 20px;
+    overflow: hidden;
+}
+
+/* ======== 細胞周期ボードエリア ======== */
+.graph-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--card-bg);
+    border-radius: 24px;
+    border: 2px solid var(--border);
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+    padding: 15px;
+    overflow: hidden;
+}
+
+.graph-wrapper {
+    position: relative;
+    display: inline-block;
+    width: min(100%, 620px);
+    aspect-ratio: 600 / 540;
+    max-height: 68vh;
+    cursor: pointer;
+}
+
+#cycle-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* 難易度に応じた図中テキスト制御 */
+.stage-mystery {
+    display: none;
+}
+
+/* ふつう・おに：図中の補足ヒントを非表示＆枠色をモノトーン化 */
+.graph-wrapper.no-subhints .stage-sub {
+    display: none;
+}
+
+.graph-wrapper.no-subhints .stage-node rect {
+    fill: #F8FAFC;
+    stroke: #64748B;
+}
+
+.graph-wrapper.no-subhints .stage-num,
+.graph-wrapper.no-subhints .stage-label {
+    fill: #1E293B;
+}
+
+/* おに：時期名そのものも隠して「？ (①〜⑤)」にする */
+.graph-wrapper.hide-stage-names .stage-label,
+.graph-wrapper.hide-stage-names .stage-guide-text {
+    display: none;
+}
+
+.graph-wrapper.hide-stage-names .stage-mystery {
+    display: block;
+}
+
+.drop-zone {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+}
+
+/* ======== カードトレイ ======== */
+.tray {
+    width: 340px;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border-radius: 24px;
+    padding: 20px;
+    border: 2px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.tray-title {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.tray-hint {
+    font-size: 12px;
+    color: var(--primary);
+    font-weight: normal;
+    background: #F0FDFA;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.card-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 6px;
+    padding-bottom: 20px;
+}
+
+.card-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.card-list::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 4px;
+}
+
+/* カードスタイル */
+.bio-card {
+    background: white;
+    padding: 12px;
+    border-radius: 16px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: 0.2s;
+    user-select: none;
+}
+
+.bio-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(13, 148, 136, 0.12);
+}
+
+.bio-card:active {
+    transform: scale(0.97);
+}
+
+.bio-card.selected {
+    border-color: var(--primary);
+    background: #F0FDFA;
+    transform: scale(0.98);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.28);
+}
+
+.cell-thumb {
+    width: 68px;
+    height: 68px;
+    border-radius: 12px;
+    background: #F8FAFC;
+    border: 1.5px solid #CBD5E1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.cell-thumb svg {
+    width: 62px;
+    height: 62px;
+    display: block;
+}
+
+.feature-icon {
+    font-size: 22px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.bio-card .info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.bio-card .cell-type-badge {
+    display: inline-block;
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #F1F5F9;
+    color: #475569;
+    margin-bottom: 4px;
+}
+
+.bio-card .name {
+    font-weight: bold;
+    font-size: 14px;
+    color: var(--text-main);
+    line-height: 1.4;
+}
+
+.bio-card .hint {
+    font-size: 12px;
+    color: var(--text-sub);
+    margin-top: 4px;
+    line-height: 1.35;
+}
+
+/* ======== 配置されたピン・バッジ ======== */
+.placed-pin {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: popDrop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes popDrop {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.placed-pin.fade-out {
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    opacity: 0;
+    transform: translate(-50%, -65%) scale(0.88);
+}
+
+.pin-mini-cell {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border-radius: 50%;
+    border: 2px solid #0D9488;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.pin-mini-cell svg {
+    width: 34px;
+    height: 34px;
+}
+
+.pin-label {
+    background: var(--card-bg);
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #0F172A;
+    border: 2px solid #0D9488;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+    margin-top: -3px;
+    white-space: nowrap;
+    max-width: 135px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ======== トースト通知 ======== */
+#toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(51, 65, 85, 0.95);
+    backdrop-filter: blur(4px);
+    color: white;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 16px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+}
+
+#toast.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+}
+
+/* ======== クリア演出・共通表示制御 ======== */
+.clear-actions[hidden],
+.auto-return-text[hidden],
+.timer-badge[hidden],
+.tab-score[hidden],
+.rule-item[hidden],
+.mode-btn[hidden] {
+    display: none;
+}
+
+#clear-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(5px);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+#clear-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+
+.clear-message-box {
+    text-align: center;
+    transform: scale(0.5);
+    opacity: 0;
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    background: white;
+    padding: 40px;
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 460px;
+}
+
+#clear-overlay.active .clear-message-box {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.clear-title {
+    font-size: 36px;
+    margin: 0 0 15px 0;
+}
+
+.clear-subtitle {
+    font-size: 16px;
+    color: var(--text-sub);
+    font-weight: bold;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.clear-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.action-btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 14px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    opacity: 0.92;
+}
+
+.action-retry {
+    background: var(--primary);
+    color: white;
+}
+
+.action-home {
+    background: #E2E8F0;
+    color: var(--text-main);
+}
+
+.record-badge {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: #FEF3C7;
+    color: #B45309;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.unlock-message {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: #0F172A;
+    color: #F8FAFC;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+    animation: unlockGlow 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes unlockGlow {
+    from { box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25); }
+    to { box-shadow: 0 6px 22px rgba(13, 148, 136, 0.55); }
+}
+
+.btn-oni.just-unlocked {
+    animation: oniReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes oniReveal {
+    0% { opacity: 0; transform: scale(0.85); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.auto-return-text {
+    font-size: 14px;
+    color: var(--text-sub);
+    background: #F1F5F9;
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.confetti-piece {
+    position: absolute;
+    top: -20px;
+    z-index: 1001;
+    opacity: 0;
+    pointer-events: none;
+}
+
+@keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+
+/* ======== レスポンシブ (スマホ・タブレット) ======== */
+@media (max-width: 820px) {
+    .main {
+        flex-direction: column;
+        padding: 10px;
+        gap: 10px;
+    }
+    .graph-wrapper {
+        max-height: 45vh;
+        width: auto;
+        max-width: 100%;
+    }
+    .tray {
+        width: 100%;
+        height: 220px;
+        padding: 12px;
+        flex-shrink: 0;
+    }
+    .card-list {
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 5px;
+        align-items: stretch;
+    }
+    .bio-card {
+        flex-shrink: 0;
+        width: 245px;
+        min-height: 92px;
+    }
+    .progress-container {
+        display: none;
+    }
+    .progress-container.oni-active {
+        display: flex;
+        margin: 0 8px;
+        gap: 6px;
+    }
+    .progress-container.oni-active .progress-bar-bg {
+        display: none;
+    }
+    .timer-badge {
+        font-size: 15px;
+        padding: 4px 8px;
+    }
+    .score-text,
+    .progress-container.oni-active .score-text {
+        font-size: 20px;
+        padding: 3px 10px;
+        min-width: auto;
+    }
+    .mode-display {
+        font-size: 12px;
+    }
+    .header {
+        padding: 0 10px;
+        height: 60px;
+    }
+    .clear-title {
+        font-size: 28px;
+    }
+    .start-card {
+        padding: 20px;
+    }
+    .category-tab {
+        font-size: 13px;
+        padding: 8px 6px;
+    }
+}
