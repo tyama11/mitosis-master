@@ -367,9 +367,9 @@ body {
 /* SVGの表示領域とピン配置レイヤーを1pxのズレもなく完全一致させる */
 .graph-wrapper {
     position: relative;
-    width: min(100%, calc(68vh * 600 / 540), 620px);
+    width: min(100%, calc(68vh * 680 / 540), 680px);
     height: auto;
-    aspect-ratio: 600 / 540;
+    aspect-ratio: 680 / 540;
     cursor: pointer;
 }
 
@@ -385,55 +385,79 @@ body {
     cursor: pointer;
 }
 
+/* スケッチモードでは G1/S/G2/M/分裂期 は参照用ラベルとして固定 */
+.graph-wrapper.sketch-mode .stage-node.cycle-only {
+    cursor: default;
+    opacity: 0.72;
+}
+
 .stage-visual {
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease;
 }
 
-.stage-node:hover .stage-visual,
+.stage-node.interactive-target:hover .stage-visual,
 .stage-node.active-target .stage-visual {
     transform: scale(1.1);
-    filter: drop-shadow(0 8px 14px rgba(13, 148, 136, 0.25));
+    filter: drop-shadow(0 8px 14px rgba(13, 148, 136, 0.28));
 }
 
-.stage-node:hover .stage-box,
+.stage-node.interactive-target:hover .stage-box,
 .stage-node.active-target .stage-box {
     stroke-width: 3.8;
 }
 
-/* 難易度に応じた図中テキスト制御 */
+/* 難易度・モードに応じた図中テキスト制御 */
 .stage-mystery {
     display: none;
 }
 
-/* ふつう・おに：図中の補足ヒントを非表示＆枠色をモノトーン化 */
-.graph-wrapper.no-subhints .stage-sub {
+/* ラベルを隠す状態（細胞周期モードの未回答枠・おにモード全体） */
+.stage-node.masked .stage-label,
+.stage-node.masked .stage-tag {
     display: none;
 }
 
-.graph-wrapper.no-subhints .stage-node .stage-box {
+.stage-node.masked .stage-mystery {
+    display: block;
+}
+
+.stage-node.masked .stage-box {
+    fill: #FFFFFF;
+    stroke: #94A3B8;
+    stroke-dasharray: 5 3;
+}
+
+.stage-node.masked.interactive-target:hover .stage-box,
+.stage-node.masked.active-target .stage-box {
+    fill: #F0FDFA;
+    stroke: #0D9488;
+    stroke-dasharray: none;
+}
+
+/* 細胞周期モードで正解して埋まった枠の演出 */
+.stage-node.solved .stage-box {
+    stroke-dasharray: none;
+    stroke-width: 3.2;
+}
+
+/* ふつう・おに：補足タグを非表示＆未解決枠をモノトーン化 */
+.graph-wrapper.no-subhints .stage-tag {
+    display: none;
+}
+
+.graph-wrapper.no-subhints .stage-node:not(.solved) .stage-box {
     fill: #F8FAFC;
     stroke: #64748B;
 }
 
-.graph-wrapper.no-subhints .stage-node:hover .stage-box,
+.graph-wrapper.no-subhints .stage-node.interactive-target:hover .stage-box,
 .graph-wrapper.no-subhints .stage-node.active-target .stage-box {
     fill: #F0FDFA;
     stroke: #0D9488;
 }
 
-.graph-wrapper.no-subhints .stage-num,
 .graph-wrapper.no-subhints .stage-label {
     fill: #1E293B;
-}
-
-/* おに：時期名そのものも隠して「？ (①〜⑤)」にする */
-.graph-wrapper.hide-stage-names .stage-label,
-.graph-wrapper.hide-stage-names .stage-guide-text {
-    display: none;
-}
-
-.graph-wrapper.hide-stage-names .stage-mystery {
-    display: block;
 }
 
 .pins-layer {
@@ -839,6 +863,18 @@ body {
     100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
 }
 
+.bio-card.advanced-card {
+    justify-content: center;
+}
+
+.bio-card.advanced-card .info {
+    align-items: center;
+}
+
+.bio-card.advanced-card .name {
+    font-size: 16px;
+}
+
 /* ======== レスポンシブ (スマホ・タブレット) ======== */
 @media (max-width: 820px) {
     .main {
@@ -847,7 +883,7 @@ body {
         gap: 10px;
     }
     .graph-wrapper {
-        width: min(100%, calc(45vh * 600 / 540));
+        width: min(100%, calc(45vh * 680 / 540));
         height: auto;
     }
     .tray {

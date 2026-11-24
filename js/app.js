@@ -1,16 +1,16 @@
 (() => {
     'use strict';
 
-    const TOTAL_QUESTIONS = STAGE_DATA.length * 2; // 5時期 × 2問 = 10問
     const ONI_TIME_LIMIT = 60;       // 秒
     const ONI_PENALTY_SECONDS = 5;   // ミス時のマイナス秒数
     const ONI_TRAY_SIZE = 3;         // おにモードでトレイに常時並べるカード枚数
 
     // ======== ゲーム状態 ========
     const state = {
-        category: 'sketch',     // 'sketch' | 'feature'
+        category: 'cycle',      // 'cycle' | 'sketch'
         difficulty: 'easy',     // 'easy' | 'normal' | 'oni'
         score: 0,
+        totalQuestions: 10,
         selectedItemId: null,
         items: [],
         stagePlacedCount: {},
@@ -32,8 +32,8 @@
         ruleOniItem: document.getElementById('rule-oni-item'),
         ruleOniText: document.getElementById('rule-oni-text'),
         btnOni: document.getElementById('btn-oni'),
+        tabScoreCycle: document.getElementById('tab-score-cycle'),
         tabScoreSketch: document.getElementById('tab-score-sketch'),
-        tabScoreFeature: document.getElementById('tab-score-feature'),
         categoryTabs: document.querySelectorAll('.category-tab'),
         modeButtons: document.querySelectorAll('.mode-btn'),
         homeBtn: document.getElementById('home-btn'),
@@ -112,7 +112,7 @@
             handlePlacementAttempt(e.clientX, e.clientY);
         });
 
-        setCategory('sketch');
+        setCategory('cycle');
         updateTabScores();
     }
 
@@ -131,8 +131,8 @@
 
     function updateTabScores() {
         const entries = [
-            { category: 'sketch', el: els.tabScoreSketch },
-            { category: 'feature', el: els.tabScoreFeature }
+            { category: 'cycle', el: els.tabScoreCycle },
+            { category: 'sketch', el: els.tabScoreSketch }
         ];
         entries.forEach(({ category, el }) => {
             const saved = localStorage.getItem(getOniBestKey(category));
@@ -182,14 +182,18 @@
 
         const isOni = difficulty === 'oni';
         const isAdvanced = difficulty === 'normal' || isOni;
+        const isSketch = state.category === 'sketch';
 
+        els.graphWrapper.classList.toggle('sketch-mode', isSketch);
         els.graphWrapper.classList.toggle('no-subhints', isAdvanced);
-        els.graphWrapper.classList.toggle('hide-stage-names', isOni);
         els.progressContainer.classList.toggle('oni-active', isOni);
         els.timerBadge.hidden = !isOni;
         els.timerBadge.classList.remove('urgent', 'penalty-flash');
         els.progressFill.classList.toggle('timer-fill', isOni);
         els.progressFill.classList.remove('urgent');
+
+        // ボード上の各枠の初期表示を設定
+        setupBoardNodes(state.category, difficulty);
 
         if (isOni) {
             state.items = buildInitialOniItems();
@@ -197,6 +201,7 @@
             startOniTimer();
         } else {
             state.items = buildStandardItems(state.category);
+            state.totalQuestions = state.items.length;
             shuffleArray(state.items);
             updateStandardProgress();
         }
@@ -212,95 +217,119 @@
         renderCards();
     }
 
+    function setupBoardNodes(category, difficulty) {
+        const isOni = difficulty === 'oni';
+
+        els.stageNodes.forEach((node) => {
+            node.classList.remove('solved', 'active-target');
+
+            if (category === 'cycle') {
+                // 細胞周期モード：全10箇所がターゲット＆すべて「？」にマスク
+                node.classList.add('interactive-target', 'masked');
+            } else {
+                // 細胞スケッチモード：間期＋前期〜終期の5箇所のみターゲット
+                const isSketchTarget = node.classList.contains('sketch-target');
+                node.classList.toggle('interactive-target', isSketchTarget);
+                // おにモード時は図の時期名をすべて隠す
+                node.classList.toggle('masked', isOni);
+            }
+        });
+    }
+
     // ======== 問題アイテム生成 ========
     function buildStandardItems(category) {
+        if (category === 'cycle') {
+            return CYCLE_ITEMS.map((entry) => ({
+                id: `item-${state.nextItemUid++}`,
+                stageId: entry.stageId,
+                stageName: entry.name,
+                kind: 'cycle',
+                emoji: entry.emoji,
+                name: entry.name,
+                hint: entry.hint,
+                color: entry.color,
+                bg: entry.bg
+            }));
+        }
+
         const result = [];
-        STAGE_DATA.forEach((stage) => {
-            if (category === 'sketch') {
-                stage.sketches.forEach((sketch) => {
-                    result.push({
-                        id: `item-${state.nextItemUid++}`,
-                        stageId: stage.id,
-                        stageName: stage.stageName,
-                        kind: 'sketch',
-                        cellType: sketch.cellType,
-                        rotated: false,
-                        badge: sketch.badge,
-                        name: sketch.cellType === 'plant' ? 'タマネギ根端の細胞' : '動物の体細胞',
-                        hint: sketch.hint,
-                        color: stage.color,
-                        bg: stage.bg,
-                        targets: stage.targets
-                    });
+        SKETCH_STAGES.forEach((stage) => {
+            stage.sketches.forEach((sketch) => {
+                result.push({
+                    id: `item-${state.nextItemUid++}`,
+                    stageId: stage.id,
+                    stageName: stage.stageName,
+                    kind: 'sketch',
+                    cellType: sketch.cellType,
+                    rotated: false,
+                    badge: sketch.badge,
+                    name: sketch.cellType === 'plant' ? 'タマネギ根端の細胞' : '動物の体細胞',
+                    hint: sketch.hint,
+                    color: stage.color,
+                    bg: stage.bg
                 });
-            } else {
-                stage.features.forEach((feat) => {
-                    result.push({
-                        id: `item-${state.nextItemUid++}`,
-                        stageId: stage.id,
-                        stageName: stage.stageName,
-                        kind: 'feature',
-                        emoji: feat.emoji,
-                        name: feat.text,
-                        hint: feat.hint,
-                        color: stage.color,
-                        bg: stage.bg,
-                        targets: stage.targets
-                    });
-                });
-            }
+            });
         });
         return result;
     }
 
-    function createRandomOniItem(stage) {
-        const uid = `item-${state.nextItemUid++}`;
-
-        if (state.category === 'sketch') {
-            const def = stage.oniSketches[Math.floor(Math.random() * stage.oniSketches.length)];
-            return {
-                id: uid,
-                stageId: stage.id,
-                stageName: stage.stageName,
-                kind: 'sketch',
-                cellType: def.cellType,
-                rotated: Boolean(def.rotated),
-                badge: def.badge,
-                name: def.cellType === 'plant' ? '植物細胞スケッチ' : '動物細胞スケッチ',
-                hint: '',
-                color: stage.color,
-                bg: stage.bg,
-                targets: stage.targets
-            };
-        }
-
-        const feat = stage.oniFeatures[Math.floor(Math.random() * stage.oniFeatures.length)];
+    function createOniItemForCycle(entry) {
         return {
-            id: uid,
+            id: `item-${state.nextItemUid++}`,
+            stageId: entry.stageId,
+            stageName: entry.name,
+            kind: 'cycle',
+            emoji: entry.emoji,
+            name: entry.name,
+            hint: '',
+            color: entry.color,
+            bg: entry.bg
+        };
+    }
+
+    function createOniItemForSketch(stage) {
+        const def = stage.oniSketches[Math.floor(Math.random() * stage.oniSketches.length)];
+        return {
+            id: `item-${state.nextItemUid++}`,
             stageId: stage.id,
             stageName: stage.stageName,
-            kind: 'feature',
-            emoji: '',
-            name: feat.text,
+            kind: 'sketch',
+            cellType: def.cellType,
+            rotated: Boolean(def.rotated),
+            badge: def.cellType === 'plant' ? '植物細胞' : '動物細胞',
+            name: def.cellType === 'plant' ? '植物細胞スケッチ' : '動物細胞スケッチ',
             hint: '',
             color: stage.color,
-            bg: stage.bg,
-            targets: stage.targets
+            bg: stage.bg
         };
     }
 
     function buildInitialOniItems() {
-        const pool = [...STAGE_DATA];
+        if (state.category === 'cycle') {
+            const pool = [...CYCLE_ITEMS];
+            shuffleArray(pool);
+            return pool.slice(0, ONI_TRAY_SIZE).map(createOniItemForCycle);
+        }
+
+        const pool = [...SKETCH_STAGES];
         shuffleArray(pool);
-        return pool.slice(0, ONI_TRAY_SIZE).map((stage) => createRandomOniItem(stage));
+        return pool.slice(0, ONI_TRAY_SIZE).map(createOniItemForSketch);
     }
 
     function pickNextOniItem() {
         const activeStageIds = new Set(state.items.map((item) => item.stageId));
-        const candidates = STAGE_DATA.filter((stage) => !activeStageIds.has(stage.id));
-        const source = candidates.length > 0 ? candidates : STAGE_DATA;
+
+        if (state.category === 'cycle') {
+            const candidates = CYCLE_ITEMS.filter((entry) => !activeStageIds.has(entry.stageId));
+            const source = candidates.length > 0 ? candidates : CYCLE_ITEMS;
+            const chosen = source[Math.floor(Math.random() * source.length)];
+            return createOniItemForCycle(chosen);
+        }
+
+        const candidates = SKETCH_STAGES.filter((stage) => !activeStageIds.has(stage.id));
+        const source = candidates.length > 0 ? candidates : SKETCH_STAGES;
         const chosen = source[Math.floor(Math.random() * source.length)];
-        return createRandomOniItem(chosen);
+        return createOniItemForSketch(chosen);
     }
 
     function shuffleArray(array) {
@@ -358,8 +387,8 @@
     }
 
     function updateStandardProgress() {
-        els.scoreText.innerHTML = `<span id="score">${state.score}</span>/<span id="total-questions">${TOTAL_QUESTIONS}</span>`;
-        const percent = (state.score / TOTAL_QUESTIONS) * 100;
+        els.scoreText.innerHTML = `<span id="score">${state.score}</span>/<span id="total-questions">${state.totalQuestions}</span>`;
+        const percent = (state.score / state.totalQuestions) * 100;
         els.progressFill.style.width = `${percent}%`;
     }
 
@@ -369,14 +398,14 @@
 
         const isOni = state.difficulty === 'oni';
         const isAdvanced = state.difficulty === 'normal' || isOni;
-        const visibleItems = isOni
-            ? state.items
-            : state.items.filter((item) => !document.getElementById(`placed-${item.id}`));
+        const visibleItems = state.items;
 
         visibleItems.forEach((item) => {
             const card = document.createElement('div');
             const isSelected = state.selectedItemId === item.id;
-            card.className = `bio-card${isSelected ? ' selected' : ''}`;
+            const isTextOnlyCard = item.kind === 'cycle' && isAdvanced;
+
+            card.className = `bio-card${isSelected ? ' selected' : ''}${isTextOnlyCard ? ' advanced-card' : ''}`;
             card.draggable = true;
 
             if (item.kind === 'sketch') {
@@ -435,15 +464,15 @@
     // ======== ステージボックス検出＆ハイライト ========
     function findStageNodeAtPoint(clientX, clientY) {
         const directEl = document.elementFromPoint(clientX, clientY);
-        const directNode = directEl ? directEl.closest('.stage-node') : null;
+        const directNode = directEl ? directEl.closest('.stage-node.interactive-target') : null;
         if (directNode) return directNode;
 
-        // 指タップ等でボックス境界のすぐ近くを押した場合も吸着させる
-        const pad = 16;
+        const pad = 14;
         let closest = null;
         let bestDist = Infinity;
 
         els.stageNodes.forEach((node) => {
+            if (!node.classList.contains('interactive-target')) return;
             const box = node.querySelector('.stage-box');
             if (!box) return;
             const r = box.getBoundingClientRect();
@@ -487,7 +516,7 @@
 
         if (isCorrect) {
             state.score++;
-            placePinOnBoard(item, targetNode);
+            handleCorrectVisual(item, targetNode);
 
             if (state.difficulty === 'oni') {
                 const replacement = pickNextOniItem();
@@ -497,8 +526,10 @@
                 state.selectedItemId = null;
                 renderCards();
             } else {
+                // 通常モード：正解したカードをトレイから削除
+                state.items.splice(itemIndex, 1);
                 updateStandardProgress();
-                if (state.score === TOTAL_QUESTIONS) {
+                if (state.score === state.totalQuestions) {
                     handleGameClear();
                 } else {
                     showToast(`⭕ 正解！ ${item.stageName}`);
@@ -513,17 +544,38 @@
                 showToast(`❌ ミス！ -${ONI_PENALTY_SECONDS}秒`);
                 applyOniTimePenalty();
             } else {
-                showToast('❌ うーん、違う時期みたい...');
+                showToast('❌ うーん、そこじゃないみたい...');
             }
         }
     }
 
-    // ======== ボード上に正解ピンを配置 ========
-    function placePinOnBoard(item, targetNode) {
+    // ======== 正解時のボード演出 ========
+    function handleCorrectVisual(item, targetNode) {
         const isOni = state.difficulty === 'oni';
-        const isAdvanced = state.difficulty === 'normal' || isOni;
 
-        // 対象ステージボックスの実際の画面座標から正確な%位置を算出
+        if (item.kind === 'cycle') {
+            // 細胞周期モード：図の「？」枠に正解の名称を直接表示
+            clearTimeout(targetNode._revealTimer);
+            targetNode.classList.remove('masked');
+            targetNode.classList.add('solved');
+
+            if (isOni) {
+                // おにモードでは一時的に名称を見せてから再び「？」に戻す
+                targetNode._revealTimer = setTimeout(() => {
+                    if (state.isPlaying && state.difficulty === 'oni') {
+                        targetNode.classList.remove('solved');
+                        targetNode.classList.add('masked');
+                    }
+                }, 750);
+            } else {
+                // 通常モードでは埋まった枠を確定させる
+                targetNode.classList.remove('interactive-target', 'active-target');
+            }
+            return;
+        }
+
+        // 細胞スケッチモード：該当ステージ上にミニ細胞ピンを配置
+        const isAdvanced = state.difficulty === 'normal' || isOni;
         const wrapperRect = els.graphWrapper.getBoundingClientRect();
         const boxEl = targetNode.querySelector('.stage-box') || targetNode;
         const boxRect = boxEl.getBoundingClientRect();
@@ -531,14 +583,13 @@
         const centerX = ((boxRect.left + boxRect.width / 2 - wrapperRect.left) / wrapperRect.width) * 100;
         const centerY = ((boxRect.top + boxRect.height / 2 - wrapperRect.top) / wrapperRect.height) * 100;
 
-        let pinX = centerX;
-        let pinY = centerY + 6.5;
+        let pinX = centerX + 7.4;
+        let pinY = centerY;
 
         if (!isOni) {
             const count = state.stagePlacedCount[item.stageId] || 0;
             state.stagePlacedCount[item.stageId] = count + 1;
-            // 各時期2問ずつなのでボックス下辺の左右に並べて配置
-            pinX = centerX + (count === 0 ? -6.5 : 6.5);
+            pinX = centerX + (count === 0 ? -7.4 : 7.4);
         }
 
         const pin = document.createElement('div');
@@ -548,28 +599,19 @@
         pin.style.top = `${pinY}%`;
 
         const borderColor = isAdvanced ? '#475569' : item.color;
-
-        if (item.kind === 'sketch') {
-            const miniSvg = renderCellSvg(item.stageId, item.cellType, {
-                monochrome: isAdvanced,
-                rotated: item.rotated
-            });
-            pin.innerHTML = `
-                <div class="pin-mini-cell" style="border-color: ${borderColor};">${miniSvg}</div>
-                <div class="pin-label" style="border-color: ${borderColor};">${item.stageName}</div>
-            `;
-        } else {
-            const shortLabel = item.name.length > 10 ? `${item.name.slice(0, 10)}…` : item.name;
-            pin.innerHTML = `
-                <div class="pin-label" style="border-color: ${borderColor};">${shortLabel}</div>
-            `;
-        }
+        const miniSvg = renderCellSvg(item.stageId, item.cellType, {
+            monochrome: isAdvanced,
+            rotated: item.rotated
+        });
+        pin.innerHTML = `
+            <div class="pin-mini-cell" style="border-color: ${borderColor};">${miniSvg}</div>
+        `;
 
         els.dropZone.appendChild(pin);
 
         if (isOni) {
-            setTimeout(() => pin.classList.add('fade-out'), 850);
-            setTimeout(() => pin.remove(), 1250);
+            setTimeout(() => pin.classList.add('fade-out'), 800);
+            setTimeout(() => pin.remove(), 1200);
         }
     }
 
@@ -608,7 +650,7 @@
         els.clearTitle.innerHTML = '🎊 素晴らしい！ 🎊';
         els.clearTitle.style.color = 'var(--primary)';
         els.clearTitle.style.textShadow = '0 4px 10px rgba(13, 148, 136, 0.2)';
-        els.clearSubtitle.innerHTML = `体細胞分裂のすべての時期をマスターしました！${unlockHtml}`;
+        els.clearSubtitle.innerHTML = `細胞周期と体細胞分裂をマスターしました！${unlockHtml}`;
         els.clearActions.hidden = true;
         els.autoReturnText.hidden = false;
 
