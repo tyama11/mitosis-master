@@ -71,8 +71,8 @@
         overlayHomeBtn: document.getElementById('overlay-home-btn')
     };
 
-    function isCycleOniMode() {
-        return state.category === 'cycle' && state.difficulty === 'oni';
+    function isOniSingleBlankMode() {
+        return state.difficulty === 'oni';
     }
 
     function getActiveSvg() {
@@ -242,36 +242,29 @@
         const isEasy = difficulty === 'easy';
         const isOni = difficulty === 'oni';
         const isSketch = state.category === 'sketch';
-        const useCycleOniBoard = isCycleOniMode();
 
         els.linearSvg.classList.toggle('active-board', !isOni && isEasy);
         els.circleSvg.classList.toggle('active-board', !isOni && !isEasy);
         els.oniCycleSvg.classList.toggle('active-board', isOni);
 
-        els.graphWrapper.classList.toggle('sketch-mode', isSketch);
+        els.graphWrapper.classList.toggle('sketch-mode', !isOni && isSketch);
         els.progressContainer.classList.toggle('oni-active', isOni);
         els.timerBadge.hidden = !isOni;
         els.timerBadge.classList.remove('urgent', 'penalty-flash', 'bonus-flash');
+        els.scoreText.hidden = !isOni; // かんたん・ふつうではスコアを表示せず、おにのみ表示
         els.progressFill.classList.toggle('timer-fill', isOni);
         els.progressFill.classList.remove('urgent');
 
         const categoryConfig = CATEGORY_CONFIG[state.category];
         els.modeDisplay.textContent = `${categoryConfig.label} / ${DIFFICULTY_LABELS[difficulty]}`;
 
-        if (useCycleOniBoard) {
-            els.trayTitleText.textContent = '❓ ？に入るのは？';
+        if (isOni) {
+            // 両タブとも「おに」は1箇所だけの空欄「？」に入るカードを3択から選ぶ形式
+            els.trayTitleText.textContent = isSketch ? '❓ ？の時期の細胞は？' : '❓ ？に入るのは？';
             els.trayHint.textContent = '👆タップで回答';
-            setupNextCycleOniQuestion();
+            setupNextOniQuestion();
             updateOniHud();
             startOniTimer();
-        } else if (isOni) {
-            els.trayTitleText.textContent = categoryConfig.trayTitle;
-            els.trayHint.textContent = '👆タップで選択';
-            els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomSketchBoardSvg();
-            state.items = buildInitialSketchOniItems();
-            updateOniHud();
-            startOniTimer();
-            renderCards();
         } else {
             els.trayTitleText.textContent = categoryConfig.trayTitle;
             els.trayHint.textContent = '👆タップで選択';
@@ -315,10 +308,10 @@
 
     // ======== コンボ＆画面シェイク演出 ========
     function updateComboBadge() {
-        if (state.combo >= 2) {
+        // コンボ表示もおにモードのみ
+        if (state.difficulty === 'oni' && state.combo >= 2) {
             els.comboBadge.textContent = `🔥 ${state.combo} COMBO`;
             els.comboBadge.hidden = false;
-            // アニメーション再発火
             els.comboBadge.style.animation = 'none';
             void els.comboBadge.offsetWidth;
             els.comboBadge.style.animation = '';
@@ -335,19 +328,25 @@
 
     function registerCorrectAnswer(displayLabel) {
         state.score++;
-        state.combo++;
-        state.maxCombo = Math.max(state.maxCombo, state.combo);
-        updateComboBadge();
-
         const isOni = state.difficulty === 'oni';
-        if (isOni && state.combo > 0 && state.combo % ONI_COMBO_STEP === 0) {
-            applyOniTimeBonus(ONI_BONUS_SECONDS);
-            SOUND_FX.playBonus();
-            showToast(`🔥 ${state.combo}連続正解！ ⏱️ +${ONI_BONUS_SECONDS}秒！`);
+
+        if (isOni) {
+            state.combo++;
+            state.maxCombo = Math.max(state.maxCombo, state.combo);
+            updateComboBadge();
+
+            if (state.combo > 0 && state.combo % ONI_COMBO_STEP === 0) {
+                applyOniTimeBonus(ONI_BONUS_SECONDS);
+                SOUND_FX.playBonus();
+                showToast(`🔥 ${state.combo}連続正解！ ⏱️ +${ONI_BONUS_SECONDS}秒！`);
+            } else {
+                SOUND_FX.playCorrect(state.combo);
+                const comboSuffix = state.combo >= 3 ? ` (🔥${state.combo}連続)` : '';
+                showToast(`⭕ 正解！ ${displayLabel}${comboSuffix}`);
+            }
         } else {
-            SOUND_FX.playCorrect(state.combo);
-            const comboSuffix = state.combo >= 3 ? ` (🔥${state.combo}連続)` : '';
-            showToast(`⭕ 正解！ ${displayLabel}${comboSuffix}`);
+            SOUND_FX.playCorrect(1);
+            showToast(`⭕ 正解！ ${displayLabel}`);
         }
     }
 
@@ -358,17 +357,37 @@
         triggerErrorShake();
     }
 
-    // ======== 細胞周期「おに」：ランダム回転・シフト＆1箇所だけ空欄の問題生成 ========
-    function setupNextCycleOniQuestion() {
+    // ======== 「おに」共通（細胞周期・細胞スケッチ）：1箇所だけ空欄「？」＆3択問題生成 ========
+    function setupNextOniQuestion() {
+        state.selectedItemId = null;
+
+        if (state.category === 'sketch') {
+            // スケッチ「おに」：5時期（間期・前期〜終期）のうち1箇所だけを「？」にし、3枚の細胞スケッチから選ばせる
+            const stageCandidates = SKETCH_STAGES.filter((s) => s.id !== state.currentOniTargetStageId);
+            const correctStage = stageCandidates[Math.floor(Math.random() * stageCandidates.length)];
+            state.currentOniTargetStageId = correctStage.id;
+
+            els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomCycleBoardSvg(correctStage.id);
+
+            const otherStages = SKETCH_STAGES.filter((s) => s.id !== correctStage.id);
+            shuffleArray(otherStages);
+            const chosenStages = [correctStage, ...otherStages.slice(0, ONI_TRAY_SIZE - 1)];
+            const choices = chosenStages.map((st) => createOniItemForSketch(st));
+            shuffleArray(choices);
+            state.items = choices;
+
+            renderCards();
+            return;
+        }
+
+        // 細胞周期「おに」：全10項目のうち1箇所だけを「？」にし、3枚の名称カードから選ばせる
         const candidates = CYCLE_ITEMS.filter((c) => c.stageId !== state.currentOniTargetStageId);
         const correctEntry = candidates[Math.floor(Math.random() * candidates.length)];
         state.currentOniTargetStageId = correctEntry.stageId;
-        state.selectedItemId = null;
 
         const svgMarkup = ONI_BOARD_GENERATOR.generateRandomCycleBoardSvg(correctEntry.stageId);
         els.oniCycleSvg.innerHTML = svgMarkup;
 
-        // M期と分裂期が両方ボード上にある時以外は、同義語どうしが同時に選択肢に出て迷わないよう除外
         const hasBothMitosisSynonyms = svgMarkup.includes('data-stage="m"') && svgMarkup.includes('data-stage="mitosis"');
         const distractorPool = CYCLE_ITEMS.filter((c) => {
             if (c.stageId === correctEntry.stageId) return false;
@@ -392,19 +411,19 @@
         renderCards();
     }
 
-    function submitCycleOniAnswer(item) {
+    function submitOniSingleBlankAnswer(item) {
         if (!state.isPlaying) return;
 
         if (item.stageId === state.currentOniTargetStageId) {
-            registerCorrectAnswer(item.name);
+            registerCorrectAnswer(item.stageName || item.name);
             updateOniHud();
-            setupNextCycleOniQuestion();
+            setupNextOniQuestion();
         } else {
             registerWrongAnswer();
             showToast(`❌ ミス！ -${ONI_PENALTY_SECONDS}秒`);
             const ended = applyOniTimePenalty();
             if (!ended) {
-                setupNextCycleOniQuestion();
+                setupNextOniQuestion();
             }
         }
     }
@@ -552,7 +571,6 @@
     }
 
     function updateStandardProgress() {
-        els.scoreText.innerHTML = `<span id="score">${state.score}</span>/<span id="total-questions">${state.totalQuestions}</span>`;
         const percent = (state.score / state.totalQuestions) * 100;
         els.progressFill.style.width = `${percent}%`;
     }
@@ -563,7 +581,7 @@
 
         const isOni = state.difficulty === 'oni';
         const isAdvanced = state.difficulty === 'normal' || isOni;
-        const cycleOni = isCycleOniMode();
+        const singleBlankOni = isOniSingleBlankMode();
 
         state.items.forEach((item) => {
             const card = document.createElement('div');
@@ -612,8 +630,8 @@
 
             card.addEventListener('click', () => {
                 if (!state.isPlaying) return;
-                if (cycleOni) {
-                    submitCycleOniAnswer(item);
+                if (singleBlankOni) {
+                    submitOniSingleBlankAnswer(item);
                     return;
                 }
                 SOUND_FX.playTap();
@@ -625,7 +643,7 @@
                 if (!state.isPlaying) return;
                 state.selectedItemId = item.id;
                 e.dataTransfer.effectAllowed = 'move';
-                if (!cycleOni) {
+                if (!singleBlankOni) {
                     setTimeout(renderCards, 0);
                 }
             });
@@ -686,8 +704,8 @@
         if (itemIndex === -1) return;
         const item = state.items[itemIndex];
 
-        if (isCycleOniMode()) {
-            submitCycleOniAnswer(item);
+        if (isOniSingleBlankMode()) {
+            submitOniSingleBlankAnswer(item);
             return;
         }
 
