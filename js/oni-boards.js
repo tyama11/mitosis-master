@@ -20,32 +20,60 @@ const ONI_BOARD_GENERATOR = (() => {
 
     const LINEAR_SEQ = ['g1', 's', 'g2', 'prophase', 'metaphase', 'anaphase', 'telophase'];
     const INTERPHASE_SET = new Set(['g1', 's', 'g2']);
+    const SKETCH_TARGET_SET = new Set(['interphase', 'prophase', 'metaphase', 'anaphase', 'telophase']);
 
     /**
-     * 1問分のランダムボードSVGマークアップを生成
+     * 細胞周期「おに」用：9箇所埋め＋1箇所だけ「？」のランダムボードSVGを生成
      * @param {string} targetStageId - 空欄「？」にするステージID
-     * @returns {string} SVG innerHTML (viewBox="0 0 700 540")
      */
     function generateRandomCycleBoardSvg(targetStageId) {
+        return generateRandomBoardInternal({ mode: 'cycle', targetStageId });
+    }
+
+    /**
+     * 細胞スケッチ「おに」用：全箇所「？」＆回転円／シフト一直線をランダムに出すボードSVGを生成
+     */
+    function generateRandomSketchBoardSvg() {
+        return generateRandomBoardInternal({ mode: 'sketch', targetStageId: null });
+    }
+
+    function generateRandomBoardInternal(opts) {
         const useLinear = Math.random() < 0.5;
         const swapMitosisPair = Math.random() < 0.5;
 
         if (useLinear) {
             const offset = Math.floor(Math.random() * LINEAR_SEQ.length);
-            return buildShiftedLinearSvg(targetStageId, offset, swapMitosisPair);
+            return buildShiftedLinearSvg(opts, offset, swapMitosisPair);
         }
 
         const orientations = ['right', 'bottom', 'left', 'top'];
         const orientation = orientations[Math.floor(Math.random() * orientations.length)];
         const jitterChoices = [-24, -12, 0, 12, 24];
         const jitterDeg = jitterChoices[Math.floor(Math.random() * jitterChoices.length)];
-        return buildRotatedCircleSvg(targetStageId, orientation, jitterDeg, swapMitosisPair);
+        return buildRotatedCircleSvg(opts, orientation, jitterDeg, swapMitosisPair);
     }
 
-    function renderBoxNode(stageId, targetStageId, x, y, w, h, fontSize = 19) {
-        const isTarget = stageId === targetStageId;
-        const label = STAGE_LABELS[stageId];
+    function renderBoxNode(stageId, opts, x, y, w, h, fontSize = 19) {
         const rx = Math.min(14, Math.round(h * 0.25));
+
+        if (opts.mode === 'sketch') {
+            // スケッチ「おに」：全枠を「？」にし、間期・前期〜終期の5枠をドロップ／タップ対象にする
+            const isSketchTarget = SKETCH_TARGET_SET.has(stageId);
+            const roleClasses = isSketchTarget
+                ? 'sketch-target interactive-target masked'
+                : 'cycle-only masked';
+            return `
+                <g class="stage-node ${roleClasses}" data-stage="${stageId}" data-accept="${stageId}" transform="translate(${x.toFixed(1)}, ${y.toFixed(1)})">
+                    <g class="stage-visual">
+                        <rect class="stage-box" x="${(-w / 2).toFixed(1)}" y="${(-h / 2).toFixed(1)}" width="${w}" height="${h}" rx="${rx}" />
+                        <text class="stage-mystery" x="0" y="${(fontSize * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fontSize}" font-weight="800" fill="#475569">？</text>
+                    </g>
+                </g>
+            `;
+        }
+
+        const isTarget = stageId === opts.targetStageId;
+        const label = STAGE_LABELS[stageId];
 
         if (isTarget) {
             return `
@@ -68,7 +96,7 @@ const ONI_BOARD_GENERATOR = (() => {
     }
 
     // ======== 1. 開始位置をランダムにずらした一直線の図 ========
-    function buildShiftedLinearSvg(targetStageId, offset, swapMitosisPair) {
+    function buildShiftedLinearSvg(opts, offset, swapMitosisPair) {
         const seq = LINEAR_SEQ.map((_, i) => LINEAR_SEQ[(offset + i) % LINEAR_SEQ.length]);
         const xs = seq.map((_, i) => 62 + i * 96);
         const rowY = 356;
@@ -164,7 +192,7 @@ const ONI_BOARD_GENERATOR = (() => {
         const rightPairId = swapMitosisPair ? 'm' : 'mitosis';
 
         const rowBoxes = seq.map((stageId, i) =>
-            renderBoxNode(stageId, targetStageId, xs[i], rowY, 80, 56, 18)
+            renderBoxNode(stageId, opts, xs[i], rowY, 80, 56, 18)
         ).join('');
 
         return `
@@ -177,15 +205,15 @@ const ONI_BOARD_GENERATOR = (() => {
             ${connectors.join('')}
             ${arrows.join('')}
             <text x="${mitoX}" y="${topY + 8}" text-anchor="middle" font-size="23" font-weight="900" fill="#475569">＝</text>
-            ${renderBoxNode('interphase', targetStageId, interX, topY, 108, 56, 19)}
-            ${renderBoxNode(leftPairId, targetStageId, mitoX - 70, topY, 104, 56, 19)}
-            ${renderBoxNode(rightPairId, targetStageId, mitoX + 70, topY, 104, 56, 19)}
+            ${renderBoxNode('interphase', opts, interX, topY, 108, 56, 19)}
+            ${renderBoxNode(leftPairId, opts, mitoX - 70, topY, 104, 56, 19)}
+            ${renderBoxNode(rightPairId, opts, mitoX + 70, topY, 104, 56, 19)}
             ${rowBoxes}
         `;
     }
 
     // ======== 2. ランダムな角度・向きに回転した円の周期図 ========
-    function buildRotatedCircleSvg(targetStageId, orientation, jitterDeg, swapMitosisPair) {
+    function buildRotatedCircleSvg(opts, orientation, jitterDeg, swapMitosisPair) {
         const baseAngles = {
             right: 0,
             bottom: 90,
@@ -298,7 +326,7 @@ const ONI_BOARD_GENERATOR = (() => {
         const subStageIds = ['prophase', 'metaphase', 'anaphase', 'telophase'];
         const subBoxesHtml = subStageIds.map((id, idx) => {
             const sp = subPositions[idx];
-            return renderBoxNode(id, targetStageId, sp.x, sp.y, sp.w, sp.h, 18);
+            return renderBoxNode(id, opts, sp.x, sp.y, sp.w, sp.h, 18);
         }).join('');
 
         return `
@@ -326,17 +354,18 @@ const ONI_BOARD_GENERATOR = (() => {
 
             <text x="${eqPos.x.toFixed(1)}" y="${eqPos.y.toFixed(1)}" text-anchor="middle" font-size="22" font-weight="900" fill="#475569">＝</text>
 
-            ${renderBoxNode('interphase', targetStageId, posInter.x, posInter.y, 98, 52, 18)}
-            ${renderBoxNode('g1', targetStageId, posG1.x, posG1.y, 88, 48, 18)}
-            ${renderBoxNode('s', targetStageId, posS.x, posS.y, 86, 48, 18)}
-            ${renderBoxNode('g2', targetStageId, posG2.x, posG2.y, 88, 48, 18)}
-            ${renderBoxNode(ringMId, targetStageId, posM.x, posM.y, 88, 48, 18)}
-            ${renderBoxNode(pairedMId, targetStageId, posPaired.x, posPaired.y, 98, 52, 18)}
+            ${renderBoxNode('interphase', opts, posInter.x, posInter.y, 98, 52, 18)}
+            ${renderBoxNode('g1', opts, posG1.x, posG1.y, 88, 48, 18)}
+            ${renderBoxNode('s', opts, posS.x, posS.y, 86, 48, 18)}
+            ${renderBoxNode('g2', opts, posG2.x, posG2.y, 88, 48, 18)}
+            ${renderBoxNode(ringMId, opts, posM.x, posM.y, 88, 48, 18)}
+            ${renderBoxNode(pairedMId, opts, posPaired.x, posPaired.y, 98, 52, 18)}
             ${subBoxesHtml}
         `;
     }
 
     return {
-        generateRandomCycleBoardSvg
+        generateRandomCycleBoardSvg,
+        generateRandomSketchBoardSvg
     };
 })();

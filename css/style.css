@@ -392,7 +392,12 @@ body {
 /* スケッチモードでは G1/S/G2/M/分裂期 は参照用ラベルとして固定 */
 .graph-wrapper.sketch-mode .stage-node.cycle-only {
     cursor: default;
-    opacity: 0.72;
+    opacity: 0.55;
+}
+
+.graph-wrapper.sketch-mode .stage-node.sketch-target.masked .stage-box {
+    stroke: #475569;
+    stroke-width: 2.8;
 }
 
 .stage-visual {

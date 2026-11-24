@@ -66,7 +66,7 @@
     }
 
     function getActiveSvg() {
-        if (isCycleOniMode()) return els.oniCycleSvg;
+        if (state.difficulty === 'oni') return els.oniCycleSvg;
         return state.difficulty === 'easy' ? els.linearSvg : els.circleSvg;
     }
 
@@ -201,10 +201,10 @@
         const isSketch = state.category === 'sketch';
         const useCycleOniBoard = isCycleOniMode();
 
-        // ボード表示切り替え
-        els.linearSvg.classList.toggle('active-board', !useCycleOniBoard && isEasy);
-        els.circleSvg.classList.toggle('active-board', !useCycleOniBoard && !isEasy);
-        els.oniCycleSvg.classList.toggle('active-board', useCycleOniBoard);
+        // ボード表示切り替え（かんたん＝一直線、ふつう＝円、おに＝両タブともランダム回転・シフト図）
+        els.linearSvg.classList.toggle('active-board', !isOni && isEasy);
+        els.circleSvg.classList.toggle('active-board', !isOni && !isEasy);
+        els.oniCycleSvg.classList.toggle('active-board', isOni);
 
         els.graphWrapper.classList.toggle('sketch-mode', isSketch);
         els.progressContainer.classList.toggle('oni-active', isOni);
@@ -223,10 +223,10 @@
             updateOniHud();
             startOniTimer();
         } else if (isOni) {
-            // スケッチ「おに」
+            // スケッチ「おに」：毎回ランダムに回転した円またはシフトした一直線の図を出題
             els.trayTitleText.textContent = categoryConfig.trayTitle;
             els.trayHint.textContent = '👆タップで選択';
-            setupStaticBoardNodes(state.category, difficulty);
+            els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomSketchBoardSvg();
             state.items = buildInitialSketchOniItems();
             updateOniHud();
             startOniTimer();
@@ -568,9 +568,11 @@
 
         if (isCorrect) {
             state.score++;
-            handleCorrectVisual(item, targetNode);
 
             if (state.difficulty === 'oni') {
+                // スケッチ「おに」：1問ごとに円・一直線（回転・シフト）をランダムに切り替え
+                els.dropZone.innerHTML = '';
+                els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomSketchBoardSvg();
                 const replacement = pickNextSketchOniItem();
                 state.items.splice(itemIndex, 1, replacement);
                 updateOniHud();
@@ -578,6 +580,7 @@
                 state.selectedItemId = null;
                 renderCards();
             } else {
+                handleCorrectVisual(item, targetNode);
                 state.items.splice(itemIndex, 1);
                 updateStandardProgress();
                 if (state.score === state.totalQuestions) {
@@ -593,7 +596,11 @@
             renderCards();
             if (state.difficulty === 'oni') {
                 showToast(`❌ ミス！ -${ONI_PENALTY_SECONDS}秒`);
-                applyOniTimePenalty();
+                const ended = applyOniTimePenalty();
+                if (!ended) {
+                    els.dropZone.innerHTML = '';
+                    els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomSketchBoardSvg();
+                }
             } else {
                 showToast('❌ うーん、そこじゃないみたい...');
             }
