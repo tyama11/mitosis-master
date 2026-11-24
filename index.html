@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>体細胞分裂マスター</title>
-    <link rel="stylesheet" href="css/style.css?v=20261124-4">
+    <link rel="stylesheet" href="css/style.css?v=20261124-5">
 </head>
 <body>
 
@@ -22,7 +22,6 @@
                 data-category="cycle"
             >
                 <span>🔄 細胞周期で覚える</span>
-                <span class="tab-score" id="tab-score-cycle" hidden></span>
             </button>
             <button
                 type="button"
@@ -39,21 +38,21 @@
 
         <h1>体細胞分裂マスター 🔬</h1>
         <p class="desc" id="home-desc">
-            カードを選んで、細胞周期の図（G₁・S・G₂・M・間期・分裂期・前期〜終期）の正しい位置に当てはめよう！
+            カードを選んで、細胞周期の正しい位置に当てはめよう！
         </p>
 
         <div class="rules" id="home-rules">
             <div class="rule-item">
                 <span class="rule-icon">🔰</span>
-                <div><b>かんたん</b>：ヒントと色分けが表示されます</div>
+                <div><b>かんたん</b>：一直線の図</div>
             </div>
             <div class="rule-item">
                 <span class="rule-icon">🧪</span>
-                <div><b>ふつう</b>：ヒント・色が消滅！文字や白黒スケッチだけで判別するモード</div>
+                <div><b>ふつう</b>：円の周期図</div>
             </div>
             <div class="rule-item" id="rule-oni-item" hidden>
                 <span class="rule-icon">👹</span>
-                <div id="rule-oni-text"><b>おに</b>：60秒タイムアタック（ミスで-5秒）！無限に出題されます</div>
+                <div id="rule-oni-text"><b>おに</b>：60秒タイムアタック（ミスで-5秒）</div>
             </div>
         </div>
 
@@ -86,165 +85,254 @@
     <main class="main">
         <section class="graph-container">
             <div class="graph-wrapper" id="graph-wrapper">
-                <!-- 細胞周期（間期：G1・S・G2 ／ M期＝分裂期：前期・中期・後期・終期） -->
+
+                <!-- ======== かんたん用：一直線の図 ======== -->
                 <svg
-                    id="cycle-svg"
+                    id="linear-svg"
+                    class="board-svg"
                     viewBox="0 0 700 540"
                     xmlns="http://www.w3.org/2000/svg"
-                    aria-label="細胞周期と体細胞分裂の模式図"
+                    aria-label="一直線の細胞周期図"
                 >
                     <defs>
-                        <marker id="arrow-slate" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                        <marker id="lin-arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto">
                             <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#64748B" />
-                        </marker>
-                        <marker id="arrow-teal" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                            <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#0D9488" />
                         </marker>
                     </defs>
 
-                    <!-- ======== 左側：細胞周期リング (中心 205, 275 / 半径 132) ======== -->
-                    <!-- 間期エリアの淡い背景扇形 (G1〜S〜G2) -->
+                    <!-- 間期の括弧ライン (G1・S・G2) -->
+                    <path d="M 30 302 L 30 268 L 286 268 L 286 302" fill="none" stroke="#94A3B8" stroke-width="2.5" stroke-linejoin="round" />
+                    <line x1="158" y1="268" x2="158" y2="228" stroke="#94A3B8" stroke-width="2.5" />
+
+                    <!-- M期＝分裂期 の括弧ライン (前期・中期・後期・終期) -->
+                    <path d="M 314 302 L 314 268 L 674 268 L 674 302" fill="none" stroke="#94A3B8" stroke-width="2.5" stroke-linejoin="round" />
+                    <line x1="494" y1="268" x2="494" y2="228" stroke="#94A3B8" stroke-width="2.5" />
+
+                    <!-- M期 ＝ 分裂期 のイコール記号 -->
+                    <text x="494" y="202" text-anchor="middle" font-size="24" font-weight="900" fill="#475569">＝</text>
+
+                    <!-- 一直線の進行矢印 (左 → 右) -->
+                    <line x1="103" y1="340" x2="115" y2="340" stroke="#64748B" stroke-width="2.5" marker-end="url(#lin-arrow)" />
+                    <line x1="199" y1="340" x2="211" y2="340" stroke="#64748B" stroke-width="2.5" marker-end="url(#lin-arrow)" />
+                    <line x1="295" y1="340" x2="307" y2="340" stroke="#64748B" stroke-width="2.5" marker-end="url(#lin-arrow)" />
+                    <line x1="391" y1="340" x2="403" y2="340" stroke="#64748B" stroke-width="2.5" marker-end="url(#lin-arrow)" />
+                    <line x1="487" y1="340" x2="499" y2="340" stroke="#64748B" stroke-width="2.5" marker-end="url(#lin-arrow)" />
+                    <line x1="583" y1="340" x2="595" y2="340" stroke="#64748B" stroke-width="2.5" marker-end="url(#lin-arrow)" />
+
+                    <!-- 上段：間期 / M期 ＝ 分裂期 -->
+                    <g class="stage-node sketch-target" data-stage="interphase" data-accept="interphase" data-default-label="間期" data-pin-dir="up" transform="translate(158, 194)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-58" y="-29" width="116" height="58" rx="14" fill="#E0F2FE" stroke="#0284C7" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#0C4A6E">間期</text>
+                            <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node cycle-only" data-stage="m" data-accept="m,mitosis" data-default-label="M期" transform="translate(422, 194)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-54" y="-29" width="108" height="58" rx="14" fill="#CCFBF1" stroke="#0D9488" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#115E59">M期</text>
+                            <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node cycle-only" data-stage="mitosis" data-accept="m,mitosis" data-default-label="分裂期" transform="translate(566, 194)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-54" y="-29" width="108" height="58" rx="14" fill="#CCFBF1" stroke="#0D9488" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#134E4A">分裂期</text>
+                            <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <!-- 下段（一直線）：G1 → S → G2 → 前期 → 中期 → 後期 → 終期 -->
+                    <g class="stage-node cycle-only" data-stage="g1" data-accept="g1" data-default-label="G₁期" transform="translate(62, 340)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-40" y="-28" width="80" height="56" rx="13" fill="#F0F9FF" stroke="#0EA5E9" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#0369A1">G₁期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node cycle-only" data-stage="s" data-accept="s" data-default-label="S期" transform="translate(158, 340)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-40" y="-28" width="80" height="56" rx="13" fill="#F0F9FF" stroke="#0EA5E9" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#0369A1">S期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node cycle-only" data-stage="g2" data-accept="g2" data-default-label="G₂期" transform="translate(254, 340)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-40" y="-28" width="80" height="56" rx="13" fill="#F0F9FF" stroke="#0EA5E9" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#0369A1">G₂期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node sketch-target" data-stage="prophase" data-accept="prophase" data-default-label="前期" data-pin-dir="down" transform="translate(350, 340)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-40" y="-28" width="80" height="56" rx="13" fill="#F0FDFA" stroke="#14B8A6" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#134E4A">前期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node sketch-target" data-stage="metaphase" data-accept="metaphase" data-default-label="中期" data-pin-dir="down" transform="translate(446, 340)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-40" y="-28" width="80" height="56" rx="13" fill="#FEFCE8" stroke="#CA8A04" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#713F12">中期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node sketch-target" data-stage="anaphase" data-accept="anaphase" data-default-label="後期" data-pin-dir="down" transform="translate(542, 340)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-40" y="-28" width="80" height="56" rx="13" fill="#FFF7ED" stroke="#EA580C" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#7C2D12">後期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node sketch-target" data-stage="telophase" data-accept="telophase" data-default-label="終期" data-pin-dir="down" transform="translate(638, 340)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-40" y="-28" width="80" height="56" rx="13" fill="#FAF5FF" stroke="#9333EA" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#581C87">終期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="18" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+                </svg>
+
+                <!-- ======== ふつう・おに用：円の周期図 ======== -->
+                <svg
+                    id="circle-svg"
+                    class="board-svg"
+                    viewBox="0 0 700 540"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-label="円の細胞周期図"
+                >
+                    <defs>
+                        <marker id="cir-arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                            <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#64748B" />
+                        </marker>
+                    </defs>
+
+                    <!-- 間期扇形 (G1〜S〜G2) -->
                     <path
                         d="M 205 275 L 298 368 A 132 132 0 1 1 298 182 Z"
-                        fill="#F0F9FF"
-                        stroke="#BAE6FD"
+                        fill="#F8FAFC"
+                        stroke="#CBD5E1"
                         stroke-width="2"
                         stroke-dasharray="5 4"
                     />
-                    <!-- M期（＝分裂期）エリアの淡い背景扇形 -->
+                    <!-- M期＝分裂期 扇形 -->
                     <path
                         d="M 205 275 L 298 182 A 132 132 0 0 1 298 368 Z"
-                        fill="#F0FDFA"
-                        stroke="#99F6E4"
+                        fill="#F1F5F9"
+                        stroke="#94A3B8"
                         stroke-width="2"
                     />
 
                     <!-- 円周ガイドリング -->
-                    <circle cx="205" cy="275" r="132" fill="none" stroke="#CBD5E1" stroke-width="11" opacity="0.55" />
+                    <circle cx="205" cy="275" r="132" fill="none" stroke="#CBD5E1" stroke-width="10" opacity="0.55" />
 
-                    <!-- 時計回りの進行矢印 -->
-                    <!-- スタート(右下) → G1期(下) -->
-                    <path d="M 296 370 A 132 132 0 0 1 258 396" fill="none" stroke="#0D9488" stroke-width="3.8" marker-end="url(#arrow-teal)" />
-                    <!-- G1期(下) → S期(左) -->
-                    <path d="M 150 395 A 132 132 0 0 1 82 323" fill="none" stroke="#64748B" stroke-width="3.5" marker-end="url(#arrow-slate)" />
-                    <!-- S期(左) → G2期(上) -->
-                    <path d="M 82 227 A 132 132 0 0 1 150 155" fill="none" stroke="#64748B" stroke-width="3.5" marker-end="url(#arrow-slate)" />
-                    <!-- G2期(上) → M期(右) -->
-                    <path d="M 260 155 A 132 132 0 0 1 326 223" fill="none" stroke="#64748B" stroke-width="3.5" marker-end="url(#arrow-slate)" />
-                    <!-- M期(右) → スタート(右下) -->
-                    <path d="M 328 323 A 132 132 0 0 1 304 362" fill="none" stroke="#0D9488" stroke-width="3.5" marker-end="url(#arrow-teal)" />
-
-                    <!-- 周期の起点マーカー（分裂完了・スタート） -->
-                    <g transform="translate(324, 398)">
-                        <rect x="-54" y="-13" width="108" height="25" rx="12.5" fill="#ECFEFF" stroke="#0891B2" stroke-width="1.6" />
-                        <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="800" fill="#0E7490">分裂直後・スタート↻</text>
-                    </g>
+                    <!-- 時計回りの進行矢印 (M→G1→S→G2→M) -->
+                    <path d="M 328 323 A 132 132 0 0 1 260 395" fill="none" stroke="#64748B" stroke-width="3.5" marker-end="url(#cir-arrow)" />
+                    <path d="M 150 395 A 132 132 0 0 1 82 323" fill="none" stroke="#64748B" stroke-width="3.5" marker-end="url(#cir-arrow)" />
+                    <path d="M 82 227 A 132 132 0 0 1 150 155" fill="none" stroke="#64748B" stroke-width="3.5" marker-end="url(#cir-arrow)" />
+                    <path d="M 260 155 A 132 132 0 0 1 326 223" fill="none" stroke="#64748B" stroke-width="3.5" marker-end="url(#cir-arrow)" />
 
                     <!-- M期 ＝ 分裂期 のイコール記号 -->
-                    <text x="397" y="283" text-anchor="middle" font-size="24" font-weight="900" fill="#0F766E">＝</text>
+                    <text x="397" y="283" text-anchor="middle" font-size="24" font-weight="900" fill="#475569">＝</text>
 
                     <!-- 分裂期（＝M期）から右側4段階枠への拡大破線 -->
                     <line x1="516" y1="252" x2="538" y2="62" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
                     <line x1="516" y1="298" x2="538" y2="488" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
 
-                    <!-- ======== 右側：分裂期（M期）の4段階コンテナ ======== -->
+                    <!-- 右側：4段階コンテナ -->
                     <rect x="536" y="48" width="152" height="454" rx="20" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2.5" />
 
                     <!-- 前期→中期→後期→終期 の下向き矢印 -->
-                    <line x1="612" y1="142" x2="612" y2="180" stroke="#64748B" stroke-width="3" marker-end="url(#arrow-slate)" />
-                    <line x1="612" y1="252" x2="612" y2="290" stroke="#64748B" stroke-width="3" marker-end="url(#arrow-slate)" />
-                    <line x1="612" y1="362" x2="612" y2="400" stroke="#64748B" stroke-width="3" marker-end="url(#arrow-slate)" />
+                    <line x1="612" y1="142" x2="612" y2="180" stroke="#64748B" stroke-width="3" marker-end="url(#cir-arrow)" />
+                    <line x1="612" y1="252" x2="612" y2="290" stroke="#64748B" stroke-width="3" marker-end="url(#cir-arrow)" />
+                    <line x1="612" y1="362" x2="612" y2="400" stroke="#64748B" stroke-width="3" marker-end="url(#cir-arrow)" />
 
-                    <!-- ======== 10個のステージノード ======== -->
-
-                    <!-- 1. 間期 (G1・S・G2の総称) -->
-                    <g class="stage-node sketch-target" data-stage="interphase" transform="translate(195, 275)">
+                    <!-- 10個のステージノード（説明なし） -->
+                    <g class="stage-node sketch-target" data-stage="interphase" data-accept="interphase" data-default-label="間期" transform="translate(195, 275)">
                         <g class="stage-visual">
-                            <rect class="stage-box" x="-56" y="-31" width="112" height="62" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2.5" />
-                            <text class="stage-tag" x="0" y="-11" text-anchor="middle" font-size="10" font-weight="bold" fill="#0369A1">G₁〜G₂の総称</text>
-                            <text class="stage-label" x="0" y="12" text-anchor="middle" font-size="21" font-weight="800" fill="#0C4A6E">間期</text>
-                            <text class="stage-mystery" x="0" y="9" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
-                        </g>
-                    </g>
-
-                    <!-- 2. G1期 (下: スタート直後) -->
-                    <g class="stage-node cycle-only" data-stage="g1" transform="translate(205, 407)">
-                        <g class="stage-visual">
-                            <rect class="stage-box" x="-50" y="-26" width="100" height="52" rx="13" fill="#F0F9FF" stroke="#0EA5E9" stroke-width="2.5" />
-                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#0369A1">G₁期</text>
-                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#475569">？</text>
-                        </g>
-                    </g>
-
-                    <!-- 3. S期 (左: DNA複製) -->
-                    <g class="stage-node cycle-only" data-stage="s" transform="translate(73, 275)">
-                        <g class="stage-visual">
-                            <rect class="stage-box" x="-48" y="-26" width="96" height="52" rx="13" fill="#F0F9FF" stroke="#0EA5E9" stroke-width="2.5" />
-                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#0369A1">S期</text>
-                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#475569">？</text>
-                        </g>
-                    </g>
-
-                    <!-- 4. G2期 (上: 分裂準備) -->
-                    <g class="stage-node cycle-only" data-stage="g2" transform="translate(205, 143)">
-                        <g class="stage-visual">
-                            <rect class="stage-box" x="-50" y="-26" width="100" height="52" rx="13" fill="#F0F9FF" stroke="#0EA5E9" stroke-width="2.5" />
-                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#0369A1">G₂期</text>
-                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#475569">？</text>
-                        </g>
-                    </g>
-
-                    <!-- 5. M期 (右: 円周上のアルファベット記号) -->
-                    <g class="stage-node cycle-only" data-stage="m" transform="translate(337, 275)">
-                        <g class="stage-visual">
-                            <rect class="stage-box" x="-45" y="-26" width="90" height="52" rx="13" fill="#CCFBF1" stroke="#0D9488" stroke-width="2.5" />
-                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#115E59">M期</text>
-                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#475569">？</text>
-                        </g>
-                    </g>
-
-                    <!-- 6. 分裂期 (M期と同義・4段階の総称) -->
-                    <g class="stage-node cycle-only" data-stage="mitosis" transform="translate(464, 275)">
-                        <g class="stage-visual">
-                            <rect class="stage-box" x="-52" y="-31" width="104" height="62" rx="15" fill="#CCFBF1" stroke="#0D9488" stroke-width="2.5" />
-                            <text class="stage-tag" x="0" y="-11" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#0F766E">M期の日本語名</text>
-                            <text class="stage-label" x="0" y="12" text-anchor="middle" font-size="20" font-weight="800" fill="#134E4A">分裂期</text>
-                            <text class="stage-mystery" x="0" y="9" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
-                        </g>
-                    </g>
-
-                    <!-- 7. 前期 -->
-                    <g class="stage-node sketch-target" data-stage="prophase" transform="translate(612, 108)">
-                        <g class="stage-visual">
-                            <rect class="stage-box" x="-64" y="-30" width="128" height="60" rx="15" fill="#F0FDFA" stroke="#14B8A6" stroke-width="2.5" />
-                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#134E4A">前期</text>
+                            <rect class="stage-box" x="-56" y="-29" width="112" height="58" rx="15" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#1E293B">間期</text>
                             <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
                         </g>
                     </g>
 
-                    <!-- 8. 中期 -->
-                    <g class="stage-node sketch-target" data-stage="metaphase" transform="translate(612, 218)">
+                    <g class="stage-node cycle-only" data-stage="g1" data-accept="g1" data-default-label="G₁期" transform="translate(205, 407)">
                         <g class="stage-visual">
-                            <rect class="stage-box" x="-64" y="-30" width="128" height="60" rx="15" fill="#FEFCE8" stroke="#CA8A04" stroke-width="2.5" />
-                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#713F12">中期</text>
+                            <rect class="stage-box" x="-50" y="-26" width="100" height="52" rx="13" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#1E293B">G₁期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node cycle-only" data-stage="s" data-accept="s" data-default-label="S期" transform="translate(73, 275)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-48" y="-26" width="96" height="52" rx="13" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#1E293B">S期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node cycle-only" data-stage="g2" data-accept="g2" data-default-label="G₂期" transform="translate(205, 143)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-50" y="-26" width="100" height="52" rx="13" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#1E293B">G₂期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node cycle-only" data-stage="m" data-accept="m,mitosis" data-default-label="M期" transform="translate(337, 275)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-45" y="-26" width="90" height="52" rx="13" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#1E293B">M期</text>
+                            <text class="stage-mystery" x="0" y="7" text-anchor="middle" font-size="19" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node cycle-only" data-stage="mitosis" data-accept="m,mitosis" data-default-label="分裂期" transform="translate(464, 275)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-52" y="-29" width="104" height="58" rx="15" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#1E293B">分裂期</text>
                             <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
                         </g>
                     </g>
 
-                    <!-- 9. 後期 -->
-                    <g class="stage-node sketch-target" data-stage="anaphase" transform="translate(612, 328)">
+                    <g class="stage-node sketch-target" data-stage="prophase" data-accept="prophase" data-default-label="前期" transform="translate(612, 108)">
                         <g class="stage-visual">
-                            <rect class="stage-box" x="-64" y="-30" width="128" height="60" rx="15" fill="#FFF7ED" stroke="#EA580C" stroke-width="2.5" />
-                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#7C2D12">後期</text>
+                            <rect class="stage-box" x="-64" y="-30" width="128" height="60" rx="15" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#1E293B">前期</text>
                             <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
                         </g>
                     </g>
 
-                    <!-- 10. 終期 -->
-                    <g class="stage-node sketch-target" data-stage="telophase" transform="translate(612, 438)">
+                    <g class="stage-node sketch-target" data-stage="metaphase" data-accept="metaphase" data-default-label="中期" transform="translate(612, 218)">
                         <g class="stage-visual">
-                            <rect class="stage-box" x="-64" y="-30" width="128" height="60" rx="15" fill="#FAF5FF" stroke="#9333EA" stroke-width="2.5" />
-                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#581C87">終期</text>
+                            <rect class="stage-box" x="-64" y="-30" width="128" height="60" rx="15" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#1E293B">中期</text>
+                            <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node sketch-target" data-stage="anaphase" data-accept="anaphase" data-default-label="後期" transform="translate(612, 328)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-64" y="-30" width="128" height="60" rx="15" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#1E293B">後期</text>
+                            <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
+                        </g>
+                    </g>
+
+                    <g class="stage-node sketch-target" data-stage="telophase" data-accept="telophase" data-default-label="終期" transform="translate(612, 438)">
+                        <g class="stage-visual">
+                            <rect class="stage-box" x="-64" y="-30" width="128" height="60" rx="15" fill="#F8FAFC" stroke="#64748B" stroke-width="2.5" />
+                            <text class="stage-label" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#1E293B">終期</text>
                             <text class="stage-mystery" x="0" y="8" text-anchor="middle" font-size="20" font-weight="800" fill="#475569">？</text>
                         </g>
                     </g>
@@ -256,7 +344,7 @@
 
         <aside class="tray">
             <div class="tray-title">
-                <span id="tray-title-text">🔄 周期リスト</span>
+                <span id="tray-title-text">🔄 周期カード</span>
                 <span class="tray-hint">👆タップで選択</span>
             </div>
             <div class="card-list" id="card-list"></div>
@@ -271,7 +359,7 @@
 <div id="clear-overlay">
     <div class="clear-message-box">
         <h1 class="clear-title" id="clear-title">🎊 素晴らしい！ 🎊</h1>
-        <div class="clear-subtitle" id="clear-subtitle">体細胞分裂のすべての時期をマスターしました！</div>
+        <div class="clear-subtitle" id="clear-subtitle">細胞周期と体細胞分裂をマスターしました！</div>
         <div class="clear-actions" id="clear-actions" hidden>
             <button type="button" class="action-btn action-retry" id="retry-btn">🔄 もう一回</button>
             <button type="button" class="action-btn action-home" id="overlay-home-btn">🏠 ホームに戻る</button>
@@ -280,8 +368,8 @@
     </div>
 </div>
 
-<script src="js/cells.js?v=20261124-4" defer></script>
-<script src="js/data.js?v=20261124-4" defer></script>
-<script src="js/app.js?v=20261124-4" defer></script>
+<script src="js/cells.js?v=20261124-5" defer></script>
+<script src="js/data.js?v=20261124-5" defer></script>
+<script src="js/app.js?v=20261124-5" defer></script>
 </body>
 </html>

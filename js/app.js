@@ -30,9 +30,7 @@
         gameScreen: document.getElementById('game-screen'),
         homeDesc: document.getElementById('home-desc'),
         ruleOniItem: document.getElementById('rule-oni-item'),
-        ruleOniText: document.getElementById('rule-oni-text'),
         btnOni: document.getElementById('btn-oni'),
-        tabScoreCycle: document.getElementById('tab-score-cycle'),
         tabScoreSketch: document.getElementById('tab-score-sketch'),
         categoryTabs: document.querySelectorAll('.category-tab'),
         modeButtons: document.querySelectorAll('.mode-btn'),
@@ -45,7 +43,8 @@
         scoreText: document.getElementById('score-text'),
         progressFill: document.getElementById('progress-fill'),
         graphWrapper: document.getElementById('graph-wrapper'),
-        stageNodes: document.querySelectorAll('.stage-node'),
+        linearSvg: document.getElementById('linear-svg'),
+        circleSvg: document.getElementById('circle-svg'),
         dropZone: document.getElementById('drop-zone'),
         cardList: document.getElementById('card-list'),
         toast: document.getElementById('toast'),
@@ -57,6 +56,14 @@
         retryBtn: document.getElementById('retry-btn'),
         overlayHomeBtn: document.getElementById('overlay-home-btn')
     };
+
+    function getActiveSvg() {
+        return state.difficulty === 'easy' ? els.linearSvg : els.circleSvg;
+    }
+
+    function getActiveStageNodes() {
+        return getActiveSvg().querySelectorAll('.stage-node');
+    }
 
     // ======== 初期化 ========
     function init() {
@@ -117,32 +124,27 @@
     }
 
     // ======== 学習カテゴリ切替＆記録管理 ========
-    function getOniBestKey(category) {
-        return `mitosis-master-oni-best-${category}`;
+    function getOniBestKey() {
+        return 'mitosis-master-oni-best-sketch';
     }
 
-    function getOniUnlockKey(category) {
-        return `mitosis-master-oni-unlocked-${category}`;
+    function getOniUnlockKey() {
+        return 'mitosis-master-oni-unlocked-sketch';
     }
 
     function isOniUnlocked(category) {
-        return localStorage.getItem(getOniUnlockKey(category)) === 'true';
+        // 細胞周期タブでは「おに」は不要（細胞スケッチタブのみ）
+        return category === 'sketch' && localStorage.getItem(getOniUnlockKey()) === 'true';
     }
 
     function updateTabScores() {
-        const entries = [
-            { category: 'cycle', el: els.tabScoreCycle },
-            { category: 'sketch', el: els.tabScoreSketch }
-        ];
-        entries.forEach(({ category, el }) => {
-            const saved = localStorage.getItem(getOniBestKey(category));
-            if (saved !== null) {
-                el.textContent = `👹 ${saved}問`;
-                el.hidden = false;
-            } else {
-                el.hidden = true;
-            }
-        });
+        const saved = localStorage.getItem(getOniBestKey());
+        if (saved !== null) {
+            els.tabScoreSketch.textContent = `👹 ${saved}問`;
+            els.tabScoreSketch.hidden = false;
+        } else {
+            els.tabScoreSketch.hidden = true;
+        }
     }
 
     function updateDifficultyVisibility(animateReveal = false) {
@@ -163,7 +165,6 @@
         });
 
         els.homeDesc.textContent = config.description;
-        els.ruleOniText.innerHTML = config.oniRule;
         updateDifficultyVisibility();
     }
 
@@ -180,19 +181,21 @@
 
         els.dropZone.innerHTML = '';
 
+        const isEasy = difficulty === 'easy';
         const isOni = difficulty === 'oni';
-        const isAdvanced = difficulty === 'normal' || isOni;
         const isSketch = state.category === 'sketch';
 
+        // かんたん＝一直線の図、ふつう・おに＝円の周期図
+        els.linearSvg.classList.toggle('active-board', isEasy);
+        els.circleSvg.classList.toggle('active-board', !isEasy);
+
         els.graphWrapper.classList.toggle('sketch-mode', isSketch);
-        els.graphWrapper.classList.toggle('no-subhints', isAdvanced);
         els.progressContainer.classList.toggle('oni-active', isOni);
         els.timerBadge.hidden = !isOni;
         els.timerBadge.classList.remove('urgent', 'penalty-flash');
         els.progressFill.classList.toggle('timer-fill', isOni);
         els.progressFill.classList.remove('urgent');
 
-        // ボード上の各枠の初期表示を設定
         setupBoardNodes(state.category, difficulty);
 
         if (isOni) {
@@ -220,17 +223,26 @@
     function setupBoardNodes(category, difficulty) {
         const isOni = difficulty === 'oni';
 
-        els.stageNodes.forEach((node) => {
-            node.classList.remove('solved', 'active-target');
+        [els.linearSvg, els.circleSvg].forEach((svg) => {
+            svg.querySelectorAll('.stage-node').forEach((node) => {
+                clearTimeout(node._revealTimer);
+                node.classList.remove('solved', 'active-target', 'interactive-target', 'masked');
 
+                const labelEl = node.querySelector('.stage-label');
+                if (labelEl && node.dataset.defaultLabel) {
+                    labelEl.textContent = node.dataset.defaultLabel;
+                }
+            });
+        });
+
+        getActiveStageNodes().forEach((node) => {
             if (category === 'cycle') {
-                // 細胞周期モード：全10箇所がターゲット＆すべて「？」にマスク
+                // 細胞周期モード：全10箇所を「？」にして回答させる
                 node.classList.add('interactive-target', 'masked');
             } else {
                 // 細胞スケッチモード：間期＋前期〜終期の5箇所のみターゲット
                 const isSketchTarget = node.classList.contains('sketch-target');
                 node.classList.toggle('interactive-target', isSketchTarget);
-                // おにモード時は図の時期名をすべて隠す
                 node.classList.toggle('masked', isOni);
             }
         });
@@ -246,7 +258,6 @@
                 kind: 'cycle',
                 emoji: entry.emoji,
                 name: entry.name,
-                hint: entry.hint,
                 color: entry.color,
                 bg: entry.bg
             }));
@@ -262,29 +273,11 @@
                     kind: 'sketch',
                     cellType: sketch.cellType,
                     rotated: false,
-                    badge: sketch.badge,
-                    name: sketch.cellType === 'plant' ? 'タマネギ根端の細胞' : '動物の体細胞',
-                    hint: sketch.hint,
-                    color: stage.color,
-                    bg: stage.bg
+                    color: stage.color
                 });
             });
         });
         return result;
-    }
-
-    function createOniItemForCycle(entry) {
-        return {
-            id: `item-${state.nextItemUid++}`,
-            stageId: entry.stageId,
-            stageName: entry.name,
-            kind: 'cycle',
-            emoji: entry.emoji,
-            name: entry.name,
-            hint: '',
-            color: entry.color,
-            bg: entry.bg
-        };
     }
 
     function createOniItemForSketch(stage) {
@@ -296,21 +289,11 @@
             kind: 'sketch',
             cellType: def.cellType,
             rotated: Boolean(def.rotated),
-            badge: def.cellType === 'plant' ? '植物細胞' : '動物細胞',
-            name: def.cellType === 'plant' ? '植物細胞スケッチ' : '動物細胞スケッチ',
-            hint: '',
-            color: stage.color,
-            bg: stage.bg
+            color: stage.color
         };
     }
 
     function buildInitialOniItems() {
-        if (state.category === 'cycle') {
-            const pool = [...CYCLE_ITEMS];
-            shuffleArray(pool);
-            return pool.slice(0, ONI_TRAY_SIZE).map(createOniItemForCycle);
-        }
-
         const pool = [...SKETCH_STAGES];
         shuffleArray(pool);
         return pool.slice(0, ONI_TRAY_SIZE).map(createOniItemForSketch);
@@ -318,14 +301,6 @@
 
     function pickNextOniItem() {
         const activeStageIds = new Set(state.items.map((item) => item.stageId));
-
-        if (state.category === 'cycle') {
-            const candidates = CYCLE_ITEMS.filter((entry) => !activeStageIds.has(entry.stageId));
-            const source = candidates.length > 0 ? candidates : CYCLE_ITEMS;
-            const chosen = source[Math.floor(Math.random() * source.length)];
-            return createOniItemForCycle(chosen);
-        }
-
         const candidates = SKETCH_STAGES.filter((stage) => !activeStageIds.has(stage.id));
         const source = candidates.length > 0 ? candidates : SKETCH_STAGES;
         const chosen = source[Math.floor(Math.random() * source.length)];
@@ -392,15 +367,14 @@
         els.progressFill.style.width = `${percent}%`;
     }
 
-    // ======== カード一覧の描画 ========
+    // ======== カード一覧の描画（説明文なし） ========
     function renderCards() {
         els.cardList.innerHTML = '';
 
         const isOni = state.difficulty === 'oni';
         const isAdvanced = state.difficulty === 'normal' || isOni;
-        const visibleItems = state.items;
 
-        visibleItems.forEach((item) => {
+        state.items.forEach((item) => {
             const card = document.createElement('div');
             const isSelected = state.selectedItemId === item.id;
             const isTextOnlyCard = item.kind === 'cycle' && isAdvanced;
@@ -413,19 +387,14 @@
                     monochrome: isAdvanced,
                     rotated: item.rotated
                 });
-                const hintHtml = (state.difficulty === 'easy')
-                    ? `<div class="hint">${item.hint}</div>`
-                    : '';
-                const badgeText = isAdvanced
-                    ? (item.cellType === 'plant' ? '植物細胞' : '動物細胞')
-                    : item.badge;
+                const labelText = item.cellType === 'plant'
+                    ? (isAdvanced ? '植物細胞' : '🌱 植物細胞')
+                    : (isAdvanced ? '動物細胞' : '🐾 動物細胞');
 
                 card.innerHTML = `
                     <div class="cell-thumb">${svgMarkup}</div>
                     <div class="info">
-                        <span class="cell-type-badge">${badgeText}</span>
-                        <div class="name">${item.name}</div>
-                        ${hintHtml}
+                        <div class="name">${labelText}</div>
                     </div>
                 `;
             } else if (isAdvanced) {
@@ -439,7 +408,6 @@
                     <div class="feature-icon" style="background-color: ${item.bg}; border: 2px solid ${item.color};">${item.emoji}</div>
                     <div class="info">
                         <div class="name">${item.name}</div>
-                        <div class="hint">${item.hint}</div>
                     </div>
                 `;
             }
@@ -463,15 +431,16 @@
 
     // ======== ステージボックス検出＆ハイライト ========
     function findStageNodeAtPoint(clientX, clientY) {
+        const activeSvg = getActiveSvg();
         const directEl = document.elementFromPoint(clientX, clientY);
         const directNode = directEl ? directEl.closest('.stage-node.interactive-target') : null;
-        if (directNode) return directNode;
+        if (directNode && activeSvg.contains(directNode)) return directNode;
 
-        const pad = 14;
+        const pad = 12;
         let closest = null;
         let bestDist = Infinity;
 
-        els.stageNodes.forEach((node) => {
+        getActiveStageNodes().forEach((node) => {
             if (!node.classList.contains('interactive-target')) return;
             const box = node.querySelector('.stage-box');
             if (!box) return;
@@ -496,7 +465,7 @@
     }
 
     function setActiveStageHighlight(activeNode) {
-        els.stageNodes.forEach((node) => {
+        getActiveStageNodes().forEach((node) => {
             node.classList.toggle('active-target', node === activeNode);
         });
     }
@@ -512,7 +481,9 @@
         if (itemIndex === -1) return;
         const item = state.items[itemIndex];
 
-        const isCorrect = targetNode.dataset.stage === item.stageId;
+        // M期と分裂期は左右どちらに入れても正解とする (data-accept="m,mitosis")
+        const acceptedIds = (targetNode.dataset.accept || targetNode.dataset.stage || '').split(',');
+        const isCorrect = acceptedIds.includes(item.stageId);
 
         if (isCorrect) {
             state.score++;
@@ -526,7 +497,6 @@
                 state.selectedItemId = null;
                 renderCards();
             } else {
-                // 通常モード：正解したカードをトレイから削除
                 state.items.splice(itemIndex, 1);
                 updateStandardProgress();
                 if (state.score === state.totalQuestions) {
@@ -554,27 +524,17 @@
         const isOni = state.difficulty === 'oni';
 
         if (item.kind === 'cycle') {
-            // 細胞周期モード：図の「？」枠に正解の名称を直接表示
-            clearTimeout(targetNode._revealTimer);
-            targetNode.classList.remove('masked');
-            targetNode.classList.add('solved');
-
-            if (isOni) {
-                // おにモードでは一時的に名称を見せてから再び「？」に戻す
-                targetNode._revealTimer = setTimeout(() => {
-                    if (state.isPlaying && state.difficulty === 'oni') {
-                        targetNode.classList.remove('solved');
-                        targetNode.classList.add('masked');
-                    }
-                }, 750);
-            } else {
-                // 通常モードでは埋まった枠を確定させる
-                targetNode.classList.remove('interactive-target', 'active-target');
+            // 置いたカードの名称（M期／分裂期を逆に入れた場合もそのまま）を枠に表示
+            const labelEl = targetNode.querySelector('.stage-label');
+            if (labelEl) {
+                labelEl.textContent = item.name;
             }
+            targetNode.classList.remove('masked', 'interactive-target', 'active-target');
+            targetNode.classList.add('solved');
             return;
         }
 
-        // 細胞スケッチモード：該当ステージ上にミニ細胞ピンを配置
+        // 細胞スケッチモード：該当ステージにミニ細胞ピンを配置
         const isAdvanced = state.difficulty === 'normal' || isOni;
         const wrapperRect = els.graphWrapper.getBoundingClientRect();
         const boxEl = targetNode.querySelector('.stage-box') || targetNode;
@@ -583,13 +543,24 @@
         const centerX = ((boxRect.left + boxRect.width / 2 - wrapperRect.left) / wrapperRect.width) * 100;
         const centerY = ((boxRect.top + boxRect.height / 2 - wrapperRect.top) / wrapperRect.height) * 100;
 
-        let pinX = centerX + 6.6;
+        const pinDir = targetNode.dataset.pinDir || '';
+        const count = isOni ? 0 : (state.stagePlacedCount[item.stageId] || 0);
+        if (!isOni) {
+            state.stagePlacedCount[item.stageId] = count + 1;
+        }
+
+        let pinX = centerX;
         let pinY = centerY;
 
-        if (!isOni) {
-            const count = state.stagePlacedCount[item.stageId] || 0;
-            state.stagePlacedCount[item.stageId] = count + 1;
-            pinX = centerX + (count === 0 ? -6.6 : 6.6);
+        if (pinDir === 'up') {
+            pinX = centerX + (count === 0 ? -3.4 : 3.4);
+            pinY = centerY - 10.5;
+        } else if (pinDir === 'down') {
+            pinX = centerX + (count === 0 ? -3.1 : 3.1);
+            pinY = centerY + 10.5;
+        } else {
+            pinX = isOni ? centerX + 6.6 : centerX + (count === 0 ? -6.6 : 6.6);
+            pinY = centerY;
         }
 
         const pin = document.createElement('div');
@@ -640,8 +611,9 @@
         let displayTime = 3500;
         let unlockHtml = '';
 
-        if (state.difficulty === 'normal' && !isOniUnlocked(state.category)) {
-            localStorage.setItem(getOniUnlockKey(state.category), 'true');
+        // 細胞スケッチタブの「ふつう」初回クリア時のみ「おに」解放
+        if (state.category === 'sketch' && state.difficulty === 'normal' && !isOniUnlocked('sketch')) {
+            localStorage.setItem(getOniUnlockKey(), 'true');
             state.justUnlockedOni = true;
             unlockHtml = '<div class="unlock-message">どこかでとびらがひらいたようだ…！</div>';
             displayTime = 4800;
@@ -650,7 +622,7 @@
         els.clearTitle.innerHTML = '🎊 素晴らしい！ 🎊';
         els.clearTitle.style.color = 'var(--primary)';
         els.clearTitle.style.textShadow = '0 4px 10px rgba(13, 148, 136, 0.2)';
-        els.clearSubtitle.innerHTML = `細胞周期と体細胞分裂をマスターしました！${unlockHtml}`;
+        els.clearSubtitle.innerHTML = `すべてマスターしました！${unlockHtml}`;
         els.clearActions.hidden = true;
         els.autoReturnText.hidden = false;
 
@@ -665,7 +637,7 @@
         state.isPlaying = false;
         state.selectedItemId = null;
 
-        const storageKey = getOniBestKey(state.category);
+        const storageKey = getOniBestKey();
         const savedRaw = localStorage.getItem(storageKey);
         const prevBest = savedRaw === null ? -1 : Number(savedRaw);
         const isNewRecord = state.score > prevBest;

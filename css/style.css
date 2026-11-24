@@ -373,11 +373,15 @@ body {
     cursor: pointer;
 }
 
-#cycle-svg {
-    display: block;
+.board-svg {
+    display: none;
     width: 100%;
     height: 100%;
     user-select: none;
+}
+
+.board-svg.active-board {
+    display: block;
 }
 
 /* ステージボックスのホバー・ターゲット拡大演出 */
@@ -412,8 +416,7 @@ body {
 }
 
 /* ラベルを隠す状態（細胞周期モードの未回答枠・おにモード全体） */
-.stage-node.masked .stage-label,
-.stage-node.masked .stage-tag {
+.stage-node.masked .stage-label {
     display: none;
 }
 
@@ -436,28 +439,14 @@ body {
 
 /* 細胞周期モードで正解して埋まった枠の演出 */
 .stage-node.solved .stage-box {
+    fill: #F0FDFA;
+    stroke: #0D9488;
     stroke-dasharray: none;
     stroke-width: 3.2;
 }
 
-/* ふつう・おに：補足タグを非表示＆未解決枠をモノトーン化 */
-.graph-wrapper.no-subhints .stage-tag {
-    display: none;
-}
-
-.graph-wrapper.no-subhints .stage-node:not(.solved) .stage-box {
-    fill: #F8FAFC;
-    stroke: #64748B;
-}
-
-.graph-wrapper.no-subhints .stage-node.interactive-target:hover .stage-box,
-.graph-wrapper.no-subhints .stage-node.active-target .stage-box {
-    fill: #F0FDFA;
-    stroke: #0D9488;
-}
-
-.graph-wrapper.no-subhints .stage-label {
-    fill: #1E293B;
+.stage-node.solved .stage-label {
+    fill: #115E59;
 }
 
 .pins-layer {
