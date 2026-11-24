@@ -6,7 +6,7 @@
  * - options: {
  *     monochrome?: boolean,
  *     rotated?: boolean,
- *     variant?: 'standard' | 'polar' | 'tilted' | 'field'
+ *     variant?: 'standard' | 'polar' | 'tilted'
  *   }
  */
 function renderCellSvg(stage, cellType, options = {}) {
@@ -22,8 +22,7 @@ function renderCellSvg(stage, cellType, options = {}) {
             chromSoft: '#475569',
             spindle: '#94A3B8',
             centrosome: '#334155',
-            plate: '#1E293B',
-            arrow: '#DC2626'
+            plate: '#1E293B'
         }
         : {
             wall: '#15803D',
@@ -34,16 +33,10 @@ function renderCellSvg(stage, cellType, options = {}) {
             chromSoft: '#E11D48',
             spindle: '#94A3B8',
             centrosome: '#D97706',
-            plate: '#15803D',
-            arrow: '#DC2626'
+            plate: '#15803D'
         };
 
-    // ひっかけ1：プレパラート視野（周囲の間期細胞に混ざる矢印指定細胞）
-    if (variant === 'field') {
-        return renderTissueFieldSvg(stage, palette);
-    }
-
-    // ひっかけ2：極方向から見た中期（染色体が輪状に並ぶ）
+    // ひっかけ：極方向から見た中期（染色体が輪状に並ぶ）
     if (variant === 'polar' && stage === 'metaphase') {
         const outlineSvg = renderCellOutline('interphase', cellType, palette);
         const polarInterior = renderPolarMetaphaseInterior(palette);
@@ -84,65 +77,6 @@ function renderPolarMetaphaseInterior(p) {
         </g>
     `).join('');
     return `<g>${arms}</g>`;
-}
-
-/** プレパラート視野（2×2の根端細胞群のうち、赤い矢印が指す右下細胞の時期を判定） */
-function renderTissueFieldSvg(targetStage, p) {
-    const miniInterphase = `
-        <circle cx="0" cy="0" r="7.5" fill="${p.chrom}" fill-opacity="0.14" stroke="${p.chromSoft}" stroke-width="1.4" />
-        <circle cx="2" cy="-1.5" r="2" fill="${p.chrom}" />
-    `;
-
-    let targetInterior = miniInterphase;
-    if (targetStage === 'prophase') {
-        targetInterior = `
-            <circle cx="0" cy="0" r="8" fill="none" stroke="${p.chromSoft}" stroke-width="1" stroke-dasharray="2 2" />
-            <path d="M -4 -3 Q 0 -6, 4 -2 M -5 2 Q 0 0, 4 5 M -2 6 Q 2 4, 5 0" fill="none" stroke="${p.chrom}" stroke-width="2" stroke-linecap="round" />
-        `;
-    } else if (targetStage === 'metaphase') {
-        targetInterior = `
-            <line x1="0" y1="-10" x2="-6" y2="0" stroke="${p.spindle}" stroke-width="0.9" />
-            <line x1="0" y1="-10" x2="6" y2="0" stroke="${p.spindle}" stroke-width="0.9" />
-            <line x1="0" y1="10" x2="-6" y2="0" stroke="${p.spindle}" stroke-width="0.9" />
-            <line x1="0" y1="10" x2="6" y2="0" stroke="${p.spindle}" stroke-width="0.9" />
-            <line x1="-9" y1="0" x2="9" y2="0" stroke="${p.chrom}" stroke-width="3" stroke-linecap="round" stroke-dasharray="3.2 2" />
-        `;
-    } else if (targetStage === 'anaphase') {
-        targetInterior = `
-            <path d="M -6 -3 L -4 -7 L -2 -3 M 2 -3 L 4 -7 L 6 -3" fill="none" stroke="${p.chrom}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M -6 3 L -4 7 L -2 3 M 2 3 L 4 7 L 6 3" fill="none" stroke="${p.chrom}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-        `;
-    } else if (targetStage === 'telophase') {
-        targetInterior = `
-            <line x1="-10" y1="0" x2="10" y2="0" stroke="${p.plate}" stroke-width="1.8" stroke-dasharray="2.5 1.5" />
-            <ellipse cx="0" cy="-6.5" rx="5.5" ry="4" fill="${p.chrom}" fill-opacity="0.16" stroke="${p.chrom}" stroke-width="1.3" stroke-dasharray="2 1.5" />
-            <ellipse cx="0" cy="6.5" rx="5.5" ry="4" fill="${p.chrom}" fill-opacity="0.16" stroke="${p.chrom}" stroke-width="1.3" stroke-dasharray="2 1.5" />
-        `;
-    }
-
-    return `
-        <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <!-- 周囲3つの間期細胞 -->
-            <g opacity="0.62">
-                <rect x="7" y="7" width="30" height="30" rx="3" fill="${p.wallFill}" stroke="${p.wall}" stroke-width="1.8" />
-                <g transform="translate(22, 22)">${miniInterphase}</g>
-
-                <rect x="41" y="7" width="30" height="30" rx="3" fill="${p.wallFill}" stroke="${p.wall}" stroke-width="1.8" />
-                <g transform="translate(56, 22)">${miniInterphase}</g>
-
-                <rect x="7" y="41" width="30" height="30" rx="3" fill="${p.wallFill}" stroke="${p.wall}" stroke-width="1.8" />
-                <g transform="translate(22, 56)">${miniInterphase}</g>
-            </g>
-
-            <!-- 判定対象の細胞（右下・強調枠＋赤矢印） -->
-            <rect x="41" y="41" width="31" height="31" rx="3.5" fill="#FFFFFF" stroke="${p.arrow}" stroke-width="2.4" />
-            <g transform="translate(56.5, 56.5)">${targetInterior}</g>
-
-            <!-- 注目矢印 -->
-            <path d="M 27 29 L 40 42" stroke="${p.arrow}" stroke-width="2.8" stroke-linecap="round" />
-            <polygon points="42,44 34,42 40,36" fill="${p.arrow}" />
-        </svg>
-    `;
 }
 
 function renderCellOutline(stage, cellType, p) {

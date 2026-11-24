@@ -30,9 +30,7 @@ const SKETCH_STAGES = [
             { cellType: 'animal', rotated: false, variant: 'standard', label: '動物細胞' },
             { cellType: 'plant', rotated: true, variant: 'standard', label: '植物細胞' }
         ],
-        trickOni: [
-            { cellType: 'plant', rotated: false, variant: 'field', label: '矢印の細胞', isTrick: true }
-        ]
+        trickOni: []
     },
     {
         id: 'prophase',
@@ -45,8 +43,7 @@ const SKETCH_STAGES = [
             { cellType: 'animal', rotated: true, variant: 'standard', label: '動物細胞' }
         ],
         trickOni: [
-            { cellType: 'plant', rotated: false, variant: 'field', label: '矢印の細胞', isTrick: true },
-            { cellType: 'animal', rotated: false, variant: 'tilted', label: '動物細胞', isTrick: true }
+            { cellType: 'animal', rotated: false, variant: 'tilted', label: '動物細胞' }
         ]
     },
     {
@@ -61,9 +58,9 @@ const SKETCH_STAGES = [
             { cellType: 'animal', rotated: true, variant: 'standard', label: '動物細胞' }
         ],
         trickOni: [
-            { cellType: 'plant', rotated: false, variant: 'polar', label: '植物細胞（極方向）', isTrick: true },
-            { cellType: 'animal', rotated: false, variant: 'polar', label: '動物細胞（極方向）', isTrick: true },
-            { cellType: 'plant', rotated: false, variant: 'field', label: '矢印の細胞', isTrick: true }
+            { cellType: 'plant', rotated: false, variant: 'polar', label: '植物細胞（極方向）' },
+            { cellType: 'animal', rotated: false, variant: 'polar', label: '動物細胞（極方向）' },
+            { cellType: 'animal', rotated: false, variant: 'tilted', label: '動物細胞' }
         ]
     },
     {
@@ -78,8 +75,7 @@ const SKETCH_STAGES = [
             { cellType: 'animal', rotated: true, variant: 'standard', label: '動物細胞' }
         ],
         trickOni: [
-            { cellType: 'plant', rotated: false, variant: 'field', label: '矢印の細胞', isTrick: true },
-            { cellType: 'animal', rotated: false, variant: 'tilted', label: '動物細胞', isTrick: true }
+            { cellType: 'animal', rotated: false, variant: 'tilted', label: '動物細胞' }
         ]
     },
     {
@@ -94,8 +90,7 @@ const SKETCH_STAGES = [
             { cellType: 'animal', rotated: true, variant: 'standard', label: '動物細胞' }
         ],
         trickOni: [
-            { cellType: 'plant', rotated: false, variant: 'field', label: '矢印の細胞', isTrick: true },
-            { cellType: 'animal', rotated: false, variant: 'tilted', label: '動物細胞', isTrick: true }
+            { cellType: 'animal', rotated: false, variant: 'tilted', label: '動物細胞' }
         ]
     }
 ];
