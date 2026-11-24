@@ -3,10 +3,14 @@
  *
  * - stage: 'interphase' | 'prophase' | 'metaphase' | 'anaphase' | 'telophase'
  * - cellType: 'plant' | 'animal'
- * - options: { monochrome?: boolean, rotated?: boolean }
+ * - options: {
+ *     monochrome?: boolean,
+ *     rotated?: boolean,
+ *     variant?: 'standard' | 'polar' | 'tilted' | 'field'
+ *   }
  */
 function renderCellSvg(stage, cellType, options = {}) {
-    const { monochrome = false, rotated = false } = options;
+    const { monochrome = false, rotated = false, variant = 'standard' } = options;
 
     const palette = monochrome
         ? {
@@ -18,23 +22,49 @@ function renderCellSvg(stage, cellType, options = {}) {
             chromSoft: '#475569',
             spindle: '#94A3B8',
             centrosome: '#334155',
-            plate: '#1E293B'
+            plate: '#1E293B',
+            arrow: '#DC2626'
         }
         : {
             wall: '#15803D',
             wallFill: '#F0FDF4',
             membrane: '#0284C7',
             cytoFill: '#F0F9FF',
-            chrom: '#BE123C',     // 酢酸オルセイン・酢酸カーミン染色風
+            chrom: '#BE123C',
             chromSoft: '#E11D48',
             spindle: '#94A3B8',
             centrosome: '#D97706',
-            plate: '#15803D'
+            plate: '#15803D',
+            arrow: '#DC2626'
         };
+
+    // ひっかけ1：プレパラート視野（周囲の間期細胞に混ざる矢印指定細胞）
+    if (variant === 'field') {
+        return renderTissueFieldSvg(stage, palette);
+    }
+
+    // ひっかけ2：極方向から見た中期（染色体が輪状に並ぶ）
+    if (variant === 'polar' && stage === 'metaphase') {
+        const outlineSvg = renderCellOutline('interphase', cellType, palette);
+        const polarInterior = renderPolarMetaphaseInterior(palette);
+        return `
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                ${outlineSvg}
+                ${polarInterior}
+            </svg>
+        `;
+    }
 
     const outlineSvg = renderCellOutline(stage, cellType, palette);
     const interiorSvg = renderStageInterior(stage, cellType, palette);
-    const rotationAttr = rotated ? ' transform="rotate(90 40 40)"' : '';
+
+    let angle = 0;
+    if (variant === 'tilted') {
+        angle = 45;
+    } else if (rotated) {
+        angle = 90;
+    }
+    const rotationAttr = angle !== 0 ? ` transform="rotate(${angle} 40 40)"` : '';
 
     return `
         <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -46,16 +76,83 @@ function renderCellSvg(stage, cellType, options = {}) {
     `;
 }
 
+/** 極方向から見た中期：核膜はなく、凝縮した染色体が中央付近に輪状（菊花状）に並ぶ */
+function renderPolarMetaphaseInterior(p) {
+    const arms = [0, 60, 120, 180, 240, 300].map((deg) => `
+        <g transform="rotate(${deg} 40 40)">
+            <path d="M 36 24 L 40 31 L 44 24" fill="none" stroke="${p.chrom}" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round" />
+        </g>
+    `).join('');
+    return `<g>${arms}</g>`;
+}
+
+/** プレパラート視野（2×2の根端細胞群のうち、赤い矢印が指す右下細胞の時期を判定） */
+function renderTissueFieldSvg(targetStage, p) {
+    const miniInterphase = `
+        <circle cx="0" cy="0" r="7.5" fill="${p.chrom}" fill-opacity="0.14" stroke="${p.chromSoft}" stroke-width="1.4" />
+        <circle cx="2" cy="-1.5" r="2" fill="${p.chrom}" />
+    `;
+
+    let targetInterior = miniInterphase;
+    if (targetStage === 'prophase') {
+        targetInterior = `
+            <circle cx="0" cy="0" r="8" fill="none" stroke="${p.chromSoft}" stroke-width="1" stroke-dasharray="2 2" />
+            <path d="M -4 -3 Q 0 -6, 4 -2 M -5 2 Q 0 0, 4 5 M -2 6 Q 2 4, 5 0" fill="none" stroke="${p.chrom}" stroke-width="2" stroke-linecap="round" />
+        `;
+    } else if (targetStage === 'metaphase') {
+        targetInterior = `
+            <line x1="0" y1="-10" x2="-6" y2="0" stroke="${p.spindle}" stroke-width="0.9" />
+            <line x1="0" y1="-10" x2="6" y2="0" stroke="${p.spindle}" stroke-width="0.9" />
+            <line x1="0" y1="10" x2="-6" y2="0" stroke="${p.spindle}" stroke-width="0.9" />
+            <line x1="0" y1="10" x2="6" y2="0" stroke="${p.spindle}" stroke-width="0.9" />
+            <line x1="-9" y1="0" x2="9" y2="0" stroke="${p.chrom}" stroke-width="3" stroke-linecap="round" stroke-dasharray="3.2 2" />
+        `;
+    } else if (targetStage === 'anaphase') {
+        targetInterior = `
+            <path d="M -6 -3 L -4 -7 L -2 -3 M 2 -3 L 4 -7 L 6 -3" fill="none" stroke="${p.chrom}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M -6 3 L -4 7 L -2 3 M 2 3 L 4 7 L 6 3" fill="none" stroke="${p.chrom}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        `;
+    } else if (targetStage === 'telophase') {
+        targetInterior = `
+            <line x1="-10" y1="0" x2="10" y2="0" stroke="${p.plate}" stroke-width="1.8" stroke-dasharray="2.5 1.5" />
+            <ellipse cx="0" cy="-6.5" rx="5.5" ry="4" fill="${p.chrom}" fill-opacity="0.16" stroke="${p.chrom}" stroke-width="1.3" stroke-dasharray="2 1.5" />
+            <ellipse cx="0" cy="6.5" rx="5.5" ry="4" fill="${p.chrom}" fill-opacity="0.16" stroke="${p.chrom}" stroke-width="1.3" stroke-dasharray="2 1.5" />
+        `;
+    }
+
+    return `
+        <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- 周囲3つの間期細胞 -->
+            <g opacity="0.62">
+                <rect x="7" y="7" width="30" height="30" rx="3" fill="${p.wallFill}" stroke="${p.wall}" stroke-width="1.8" />
+                <g transform="translate(22, 22)">${miniInterphase}</g>
+
+                <rect x="41" y="7" width="30" height="30" rx="3" fill="${p.wallFill}" stroke="${p.wall}" stroke-width="1.8" />
+                <g transform="translate(56, 22)">${miniInterphase}</g>
+
+                <rect x="7" y="41" width="30" height="30" rx="3" fill="${p.wallFill}" stroke="${p.wall}" stroke-width="1.8" />
+                <g transform="translate(22, 56)">${miniInterphase}</g>
+            </g>
+
+            <!-- 判定対象の細胞（右下・強調枠＋赤矢印） -->
+            <rect x="41" y="41" width="31" height="31" rx="3.5" fill="#FFFFFF" stroke="${p.arrow}" stroke-width="2.4" />
+            <g transform="translate(56.5, 56.5)">${targetInterior}</g>
+
+            <!-- 注目矢印 -->
+            <path d="M 27 29 L 40 42" stroke="${p.arrow}" stroke-width="2.8" stroke-linecap="round" />
+            <polygon points="42,44 34,42 40,36" fill="${p.arrow}" />
+        </svg>
+    `;
+}
+
 function renderCellOutline(stage, cellType, p) {
     if (cellType === 'plant') {
-        // 植物細胞：二重線の角丸四角形（細胞壁＋細胞膜）
         return `
             <rect x="11" y="9" width="58" height="62" rx="7" fill="${p.wallFill}" stroke="${p.wall}" stroke-width="3" />
             <rect x="14.5" y="12.5" width="51" height="55" rx="4.5" fill="none" stroke="${p.wall}" stroke-width="1" opacity="0.55" />
         `;
     }
 
-    // 動物細胞：終期は赤道面がくびれたピーナッツ形、後期はやや縦長楕円、他は円形
     if (stage === 'telophase') {
         return `
             <path
@@ -91,7 +188,6 @@ function renderStageInterior(stage, cellType, p) {
 
     switch (stage) {
         case 'interphase': {
-            // 間期：明瞭な核膜・核小体（仁）・細かく散らばる染色質
             const centrosome = isAnimal
                 ? `<circle cx="57" cy="24" r="1.8" fill="${p.centrosome}" /><circle cx="60" cy="27" r="1.8" fill="${p.centrosome}" />`
                 : '';
@@ -108,7 +204,6 @@ function renderStageInterior(stage, cellType, p) {
         }
 
         case 'prophase': {
-            // 前期：核膜が点線状に消えかかり、太いひも状の染色体が現れる
             const asters = isAnimal ? renderAsters([{ x: 26, y: 19 }, { x: 54, y: 61 }], p) : '';
             return `
                 ${asters}
@@ -124,7 +219,6 @@ function renderStageInterior(stage, cellType, p) {
         }
 
         case 'metaphase': {
-            // 中期：紡錘糸が両極から伸び、染色体が赤道面(y=40)に一列に並ぶ
             const asters = isAnimal ? renderAsters([{ x: 40, y: 15 }, { x: 40, y: 65 }], p) : '';
             return `
                 <g stroke="${p.spindle}" stroke-width="1.2">
@@ -148,7 +242,6 @@ function renderStageInterior(stage, cellType, p) {
         }
 
         case 'anaphase': {
-            // 後期：V字形の染色体が両極（上下）へ引き寄せられる
             const asters = isAnimal ? renderAsters([{ x: 40, y: 14 }, { x: 40, y: 66 }], p) : '';
             return `
                 <g stroke="${p.spindle}" stroke-width="1.1">
@@ -163,12 +256,10 @@ function renderStageInterior(stage, cellType, p) {
                 </g>
                 ${asters}
                 <g fill="none" stroke="${p.chrom}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
-                    <!-- 上極へ向かう染色体群 -->
                     <path d="M 24 32 L 27 25 L 30 32" />
                     <path d="M 33 31 L 36 24 L 39 31" />
                     <path d="M 41 31 L 44 24 L 47 31" />
                     <path d="M 50 32 L 53 25 L 56 32" />
-                    <!-- 下極へ向かう染色体群 -->
                     <path d="M 24 48 L 27 55 L 30 48" />
                     <path d="M 33 49 L 36 56 L 39 49" />
                     <path d="M 41 49 L 44 56 L 47 49" />
@@ -178,17 +269,14 @@ function renderStageInterior(stage, cellType, p) {
         }
 
         case 'telophase': {
-            // 終期：2つの娘核が形成され、植物は「細胞板」、動物は「くびれ」で仕切られる
             const cellPlate = !isAnimal
                 ? `<line x1="18" y1="40" x2="62" y2="40" stroke="${p.plate}" stroke-width="2.6" stroke-dasharray="4 2.5" />`
                 : '';
             return `
                 ${cellPlate}
-                <!-- 上側の娘核 -->
                 <ellipse cx="40" cy="24" rx="11" ry="8.5" fill="${p.chrom}" fill-opacity="0.14" stroke="${p.chrom}" stroke-width="1.8" stroke-dasharray="3 2" />
                 <circle cx="43" cy="23" r="2.2" fill="${p.chrom}" />
                 <circle cx="36" cy="25" r="1.2" fill="${p.chromSoft}" />
-                <!-- 下側の娘核 -->
                 <ellipse cx="40" cy="56" rx="11" ry="8.5" fill="${p.chrom}" fill-opacity="0.14" stroke="${p.chrom}" stroke-width="1.8" stroke-dasharray="3 2" />
                 <circle cx="37" cy="57" r="2.2" fill="${p.chrom}" />
                 <circle cx="44" cy="55" r="1.2" fill="${p.chromSoft}" />

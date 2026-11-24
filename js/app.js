@@ -1,15 +1,20 @@
 (() => {
     'use strict';
 
-    const ONI_TIME_LIMIT = 60;       // 秒
-    const ONI_PENALTY_SECONDS = 5;   // ミス時のマイナス秒数
-    const ONI_TRAY_SIZE = 3;         // おにモードでトレイに常時並べるカード枚数
+    const ONI_TIME_LIMIT = 60;          // 秒
+    const ONI_PENALTY_SECONDS = 5;      // ミス時のマイナス秒数
+    const ONI_COMBO_STEP = 5;           // 何連続正解ごとに時間回復するか
+    const ONI_BONUS_SECONDS = 3;        // コンボボーナス秒数
+    const ONI_TRAY_SIZE = 3;            // おにモードでトレイに常時並べるカード枚数
+    const TRICK_SKETCH_CHANCE = 0.28;   // スケッチ「おに」でひっかけ図が混ざる確率
 
     // ======== ゲーム状態 ========
     const state = {
         category: 'cycle',      // 'cycle' | 'sketch'
         difficulty: 'easy',     // 'easy' | 'normal' | 'oni'
         score: 0,
+        combo: 0,
+        maxCombo: 0,
         totalQuestions: 10,
         selectedItemId: null,
         currentOniTargetStageId: null,
@@ -17,6 +22,7 @@
         stagePlacedCount: {},
         nextItemUid: 0,
         timeLeft: ONI_TIME_LIMIT,
+        lastTickSecond: -1,
         oniEndTime: 0,
         isPlaying: false,
         justUnlockedOni: false,
@@ -29,9 +35,12 @@
     const els = {
         homeScreen: document.getElementById('home-screen'),
         gameScreen: document.getElementById('game-screen'),
+        mainArea: document.querySelector('.main'),
         homeDesc: document.getElementById('home-desc'),
         ruleOniItem: document.getElementById('rule-oni-item'),
         btnOni: document.getElementById('btn-oni'),
+        homeMuteBtn: document.getElementById('home-mute-btn'),
+        gameMuteBtn: document.getElementById('game-mute-btn'),
         tabScoreCycle: document.getElementById('tab-score-cycle'),
         tabScoreSketch: document.getElementById('tab-score-sketch'),
         categoryTabs: document.querySelectorAll('.category-tab'),
@@ -43,6 +52,7 @@
         progressContainer: document.getElementById('progress-container'),
         timerBadge: document.getElementById('timer-badge'),
         timerText: document.getElementById('timer-text'),
+        comboBadge: document.getElementById('combo-badge'),
         scoreText: document.getElementById('score-text'),
         progressFill: document.getElementById('progress-fill'),
         graphWrapper: document.getElementById('graph-wrapper'),
@@ -78,22 +88,42 @@
     function init() {
         els.categoryTabs.forEach((tab) => {
             tab.addEventListener('click', () => {
+                SOUND_FX.playTap();
                 setCategory(tab.dataset.category);
             });
         });
 
         els.modeButtons.forEach((btn) => {
             btn.addEventListener('click', () => {
+                SOUND_FX.playTap();
                 startGame(btn.dataset.difficulty);
             });
         });
 
-        els.homeBtn.addEventListener('click', resetToHome);
-        els.overlayHomeBtn.addEventListener('click', resetToHome);
+        els.homeBtn.addEventListener('click', () => {
+            SOUND_FX.playTap();
+            resetToHome();
+        });
+
+        els.overlayHomeBtn.addEventListener('click', () => {
+            SOUND_FX.playTap();
+            resetToHome();
+        });
+
         els.retryBtn.addEventListener('click', () => {
+            SOUND_FX.playTap();
             els.clearOverlay.classList.remove('active');
             startGame(state.difficulty);
         });
+
+        // 効果音ミュート切替
+        const handleMuteClick = () => {
+            SOUND_FX.toggleMute();
+            syncMuteButtons();
+        };
+        els.homeMuteBtn.addEventListener('click', handleMuteClick);
+        els.gameMuteBtn.addEventListener('click', handleMuteClick);
+        syncMuteButtons();
 
         // ボード上のホバー・ドラッグ拡大ハイライトとドロップ／タップ判定
         els.graphWrapper.addEventListener('mousemove', (e) => {
@@ -132,6 +162,12 @@
         updateTabScores();
     }
 
+    function syncMuteButtons() {
+        const muted = SOUND_FX.isMuted();
+        els.homeMuteBtn.textContent = muted ? '🔇 音OFF' : '🔊 音ON';
+        els.gameMuteBtn.textContent = muted ? '🔇' : '🔊';
+    }
+
     // ======== 学習カテゴリ切替＆記録管理 ========
     function getOniBestKey(category) {
         return `mitosis-master-oni-best-${category}`;
@@ -153,7 +189,10 @@
         entries.forEach(({ category, el }) => {
             const saved = localStorage.getItem(getOniBestKey(category));
             if (saved !== null) {
-                el.textContent = `👹 ${saved}問`;
+                const bestNum = Number(saved);
+                const rankInfo = getOniRankInfo(category, bestNum);
+                el.textContent = `${rankInfo.icon} ${rankInfo.rank}・${bestNum}問`;
+                el.classList.toggle('rank-s', rankInfo.rank === 'S');
                 el.hidden = false;
             } else {
                 el.hidden = true;
@@ -187,21 +226,24 @@
         stopTimers();
         state.difficulty = difficulty;
         state.score = 0;
+        state.combo = 0;
+        state.maxCombo = 0;
         state.selectedItemId = null;
         state.currentOniTargetStageId = null;
         state.stagePlacedCount = {};
         state.nextItemUid = 0;
         state.timeLeft = ONI_TIME_LIMIT;
+        state.lastTickSecond = -1;
         state.isPlaying = true;
 
         els.dropZone.innerHTML = '';
+        updateComboBadge();
 
         const isEasy = difficulty === 'easy';
         const isOni = difficulty === 'oni';
         const isSketch = state.category === 'sketch';
         const useCycleOniBoard = isCycleOniMode();
 
-        // ボード表示切り替え（かんたん＝一直線、ふつう＝円、おに＝両タブともランダム回転・シフト図）
         els.linearSvg.classList.toggle('active-board', !isOni && isEasy);
         els.circleSvg.classList.toggle('active-board', !isOni && !isEasy);
         els.oniCycleSvg.classList.toggle('active-board', isOni);
@@ -209,7 +251,7 @@
         els.graphWrapper.classList.toggle('sketch-mode', isSketch);
         els.progressContainer.classList.toggle('oni-active', isOni);
         els.timerBadge.hidden = !isOni;
-        els.timerBadge.classList.remove('urgent', 'penalty-flash');
+        els.timerBadge.classList.remove('urgent', 'penalty-flash', 'bonus-flash');
         els.progressFill.classList.toggle('timer-fill', isOni);
         els.progressFill.classList.remove('urgent');
 
@@ -223,7 +265,6 @@
             updateOniHud();
             startOniTimer();
         } else if (isOni) {
-            // スケッチ「おに」：毎回ランダムに回転した円またはシフトした一直線の図を出題
             els.trayTitleText.textContent = categoryConfig.trayTitle;
             els.trayHint.textContent = '👆タップで選択';
             els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomSketchBoardSvg();
@@ -232,7 +273,6 @@
             startOniTimer();
             renderCards();
         } else {
-            // かんたん・ふつう
             els.trayTitleText.textContent = categoryConfig.trayTitle;
             els.trayHint.textContent = '👆タップで選択';
             setupStaticBoardNodes(state.category, difficulty);
@@ -273,6 +313,51 @@
         });
     }
 
+    // ======== コンボ＆画面シェイク演出 ========
+    function updateComboBadge() {
+        if (state.combo >= 2) {
+            els.comboBadge.textContent = `🔥 ${state.combo} COMBO`;
+            els.comboBadge.hidden = false;
+            // アニメーション再発火
+            els.comboBadge.style.animation = 'none';
+            void els.comboBadge.offsetWidth;
+            els.comboBadge.style.animation = '';
+        } else {
+            els.comboBadge.hidden = true;
+        }
+    }
+
+    function triggerErrorShake() {
+        els.mainArea.classList.remove('shake-error');
+        void els.mainArea.offsetWidth;
+        els.mainArea.classList.add('shake-error');
+    }
+
+    function registerCorrectAnswer(displayLabel) {
+        state.score++;
+        state.combo++;
+        state.maxCombo = Math.max(state.maxCombo, state.combo);
+        updateComboBadge();
+
+        const isOni = state.difficulty === 'oni';
+        if (isOni && state.combo > 0 && state.combo % ONI_COMBO_STEP === 0) {
+            applyOniTimeBonus(ONI_BONUS_SECONDS);
+            SOUND_FX.playBonus();
+            showToast(`🔥 ${state.combo}連続正解！ ⏱️ +${ONI_BONUS_SECONDS}秒！`);
+        } else {
+            SOUND_FX.playCorrect(state.combo);
+            const comboSuffix = state.combo >= 3 ? ` (🔥${state.combo}連続)` : '';
+            showToast(`⭕ 正解！ ${displayLabel}${comboSuffix}`);
+        }
+    }
+
+    function registerWrongAnswer() {
+        state.combo = 0;
+        updateComboBadge();
+        SOUND_FX.playWrong();
+        triggerErrorShake();
+    }
+
     // ======== 細胞周期「おに」：ランダム回転・シフト＆1箇所だけ空欄の問題生成 ========
     function setupNextCycleOniQuestion() {
         const candidates = CYCLE_ITEMS.filter((c) => c.stageId !== state.currentOniTargetStageId);
@@ -280,10 +365,8 @@
         state.currentOniTargetStageId = correctEntry.stageId;
         state.selectedItemId = null;
 
-        // ランダムに「回転した円」または「開始位置をずらした一直線」の図を生成（他9箇所は埋めて1箇所だけ？）
         els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomCycleBoardSvg(correctEntry.stageId);
 
-        // 正解1枚＋ダミー2枚の計3枚カードを生成
         const distractorPool = CYCLE_ITEMS.filter((c) => c.stageId !== correctEntry.stageId);
         shuffleArray(distractorPool);
         const choices = [correctEntry, ...distractorPool.slice(0, ONI_TRAY_SIZE - 1)].map((entry) => ({
@@ -303,11 +386,11 @@
         if (!state.isPlaying) return;
 
         if (item.stageId === state.currentOniTargetStageId) {
-            state.score++;
+            registerCorrectAnswer(item.name);
             updateOniHud();
-            showToast(`⭕ 正解！ ${item.name}`);
             setupNextCycleOniQuestion();
         } else {
+            registerWrongAnswer();
             showToast(`❌ ミス！ -${ONI_PENALTY_SECONDS}秒`);
             const ended = applyOniTimePenalty();
             if (!ended) {
@@ -316,7 +399,7 @@
         }
     }
 
-    // ======== 通常・スケッチおに問題生成 ========
+    // ======== 通常・スケッチおに問題生成（ひっかけスケッチ対応） ========
     function buildStandardItems(category) {
         if (category === 'cycle') {
             return CYCLE_ITEMS.map((entry) => ({
@@ -341,6 +424,8 @@
                     kind: 'sketch',
                     cellType: sketch.cellType,
                     rotated: false,
+                    variant: 'standard',
+                    label: sketch.cellType === 'plant' ? '植物細胞' : '動物細胞',
                     color: stage.color
                 });
             });
@@ -349,7 +434,10 @@
     }
 
     function createOniItemForSketch(stage) {
-        const def = stage.oniSketches[Math.floor(Math.random() * stage.oniSketches.length)];
+        const useTrick = stage.trickOni && stage.trickOni.length > 0 && Math.random() < TRICK_SKETCH_CHANCE;
+        const pool = useTrick ? stage.trickOni : stage.normalOni;
+        const def = pool[Math.floor(Math.random() * pool.length)];
+
         return {
             id: `item-${state.nextItemUid++}`,
             stageId: stage.id,
@@ -357,6 +445,8 @@
             kind: 'sketch',
             cellType: def.cellType,
             rotated: Boolean(def.rotated),
+            variant: def.variant || 'standard',
+            label: def.label || (def.cellType === 'plant' ? '植物細胞' : '動物細胞'),
             color: stage.color
         };
     }
@@ -382,13 +472,19 @@
         }
     }
 
-    // ======== おにモード タイマー ========
+    // ======== おにモード タイマー＆時間増減 ========
     function startOniTimer() {
         state.oniEndTime = Date.now() + ONI_TIME_LIMIT * 1000;
 
         state.timerInterval = setInterval(() => {
             const remainingMs = Math.max(0, state.oniEndTime - Date.now());
             state.timeLeft = Math.ceil(remainingMs / 1000);
+
+            if (state.timeLeft <= 10 && state.timeLeft > 0 && state.timeLeft !== state.lastTickSecond) {
+                state.lastTickSecond = state.timeLeft;
+                SOUND_FX.playTick();
+            }
+
             updateOniHud(remainingMs);
 
             if (remainingMs <= 0) {
@@ -404,6 +500,7 @@
         state.timeLeft = Math.ceil(remainingMs / 1000);
         updateOniHud(remainingMs);
 
+        els.timerBadge.classList.remove('bonus-flash');
         els.timerBadge.classList.add('penalty-flash');
         setTimeout(() => {
             els.timerBadge.classList.remove('penalty-flash');
@@ -417,11 +514,24 @@
         return false;
     }
 
+    function applyOniTimeBonus(seconds) {
+        state.oniEndTime += seconds * 1000;
+        const remainingMs = Math.max(0, state.oniEndTime - Date.now());
+        state.timeLeft = Math.ceil(remainingMs / 1000);
+        updateOniHud(remainingMs);
+
+        els.timerBadge.classList.remove('penalty-flash');
+        els.timerBadge.classList.add('bonus-flash');
+        setTimeout(() => {
+            els.timerBadge.classList.remove('bonus-flash');
+        }, 420);
+    }
+
     function updateOniHud(remainingMs = state.timeLeft * 1000) {
         els.timerText.textContent = state.timeLeft;
         els.scoreText.textContent = `🏆 ${state.score}問`;
 
-        const percent = (remainingMs / (ONI_TIME_LIMIT * 1000)) * 100;
+        const percent = Math.min(100, (remainingMs / (ONI_TIME_LIMIT * 1000)) * 100);
         els.progressFill.style.width = `${percent}%`;
 
         const isUrgent = state.timeLeft <= 10;
@@ -454,11 +564,12 @@
             if (item.kind === 'sketch') {
                 const svgMarkup = renderCellSvg(item.stageId, item.cellType, {
                     monochrome: isAdvanced,
-                    rotated: item.rotated
+                    rotated: item.rotated,
+                    variant: item.variant || 'standard'
                 });
-                const labelText = item.cellType === 'plant'
-                    ? (isAdvanced ? '植物細胞' : '🌱 植物細胞')
-                    : (isAdvanced ? '動物細胞' : '🐾 動物細胞');
+                const labelText = isAdvanced
+                    ? item.label
+                    : (item.cellType === 'plant' ? '🌱 植物細胞' : '🐾 動物細胞');
 
                 card.innerHTML = `
                     <div class="cell-thumb">${svgMarkup}</div>
@@ -484,10 +595,10 @@
             card.addEventListener('click', () => {
                 if (!state.isPlaying) return;
                 if (cycleOni) {
-                    // 1箇所だけ空欄の細胞周期「おに」ではカードタップで即回答
                     submitCycleOniAnswer(item);
                     return;
                 }
+                SOUND_FX.playTap();
                 state.selectedItemId = isSelected ? null : item.id;
                 renderCards();
             });
@@ -557,7 +668,6 @@
         if (itemIndex === -1) return;
         const item = state.items[itemIndex];
 
-        // 細胞周期「おに」で「？」枠にドラッグ＆ドロップした場合も対応
         if (isCycleOniMode()) {
             submitCycleOniAnswer(item);
             return;
@@ -567,16 +677,14 @@
         const isCorrect = acceptedIds.includes(item.stageId);
 
         if (isCorrect) {
-            state.score++;
+            registerCorrectAnswer(item.stageName);
 
             if (state.difficulty === 'oni') {
-                // スケッチ「おに」：1問ごとに円・一直線（回転・シフト）をランダムに切り替え
                 els.dropZone.innerHTML = '';
                 els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomSketchBoardSvg();
                 const replacement = pickNextSketchOniItem();
                 state.items.splice(itemIndex, 1, replacement);
                 updateOniHud();
-                showToast(`⭕ 正解！ ${item.stageName}`);
                 state.selectedItemId = null;
                 renderCards();
             } else {
@@ -586,12 +694,12 @@
                 if (state.score === state.totalQuestions) {
                     handleGameClear();
                 } else {
-                    showToast(`⭕ 正解！ ${item.stageName}`);
                     state.selectedItemId = null;
                     renderCards();
                 }
             }
         } else {
+            registerWrongAnswer();
             state.selectedItemId = null;
             renderCards();
             if (state.difficulty === 'oni') {
@@ -658,25 +766,21 @@
         const borderColor = isAdvanced ? '#475569' : item.color;
         const miniSvg = renderCellSvg(item.stageId, item.cellType, {
             monochrome: isAdvanced,
-            rotated: item.rotated
+            rotated: item.rotated,
+            variant: item.variant || 'standard'
         });
         pin.innerHTML = `
             <div class="pin-mini-cell" style="border-color: ${borderColor};">${miniSvg}</div>
         `;
 
         els.dropZone.appendChild(pin);
-
-        if (isOni) {
-            setTimeout(() => pin.classList.add('fade-out'), 800);
-            setTimeout(() => pin.remove(), 1200);
-        }
     }
 
     // ======== トースト通知 ========
     function showToast(msg) {
         els.toast.innerHTML = msg;
 
-        if (msg.includes('⭕')) {
+        if (msg.includes('🔥') || msg.includes('⭕')) {
             els.toast.style.backgroundColor = 'rgba(13, 148, 136, 0.95)';
         } else if (msg.includes('❌')) {
             els.toast.style.backgroundColor = 'rgba(239, 68, 68, 0.95)';
@@ -688,7 +792,7 @@
         clearTimeout(state.toastTimeout);
         state.toastTimeout = setTimeout(() => {
             els.toast.classList.remove('show');
-        }, state.difficulty === 'oni' ? 900 : 1800);
+        }, state.difficulty === 'oni' ? 950 : 1800);
     }
 
     // ======== クリア＆タイムアップ演出 ========
@@ -696,14 +800,17 @@
         state.isPlaying = false;
         let displayTime = 3500;
         let unlockHtml = '';
+        let unlockedNow = false;
 
-        // 両タブとも「ふつう」初回クリアで「おに」解放
         if (state.difficulty === 'normal' && !isOniUnlocked(state.category)) {
             localStorage.setItem(getOniUnlockKey(state.category), 'true');
             state.justUnlockedOni = true;
+            unlockedNow = true;
             unlockHtml = '<div class="unlock-message">どこかでとびらがひらいたようだ…！</div>';
             displayTime = 4800;
         }
+
+        SOUND_FX.playClear(unlockedNow);
 
         els.clearTitle.innerHTML = '🎊 素晴らしい！ 🎊';
         els.clearTitle.style.color = 'var(--primary)';
@@ -734,6 +841,9 @@
         }
         updateTabScores();
 
+        const rankInfo = getOniRankInfo(state.category, state.score);
+        SOUND_FX.playTimeUp(rankInfo.rank === 'S' || rankInfo.rank === 'A');
+
         const recordBadge = isNewRecord
             ? '<br><span class="record-badge">🎉 NEW RECORD!</span>'
             : '';
@@ -742,8 +852,13 @@
         els.clearTitle.style.color = '#0F172A';
         els.clearTitle.style.textShadow = 'none';
         els.clearSubtitle.innerHTML = `
-            <div style="font-size: 46px; font-weight: 900; color: var(--primary); line-height: 1.15; margin-bottom: 8px;">${state.score}<span style="font-size: 24px; margin-left: 4px;">問正解！</span></div>
-            <div style="font-size: 18px;">ベスト記録：<b>${bestScore} 問</b></div>${recordBadge}
+            <div class="rank-showcase ${rankInfo.className}">
+                <span class="rank-letter">${rankInfo.rank}</span>
+                <span class="rank-title-text">${rankInfo.icon} ${rankInfo.title}</span>
+            </div>
+            <div style="font-size: 46px; font-weight: 900; color: var(--primary); line-height: 1.12; margin-bottom: 6px;">${state.score}<span style="font-size: 24px; margin-left: 4px;">問正解！</span></div>
+            <div style="font-size: 15px; color: #64748B; margin-bottom: 4px;">最大コンボ：🔥 ${state.maxCombo} 連続</div>
+            <div style="font-size: 17px;">ベスト記録：<b>${bestScore} 問</b></div>${recordBadge}
         `;
         els.clearActions.hidden = false;
         els.autoReturnText.hidden = true;
@@ -794,7 +909,9 @@
         els.dropZone.innerHTML = '';
         els.cardList.innerHTML = '';
         state.score = 0;
+        state.combo = 0;
         state.selectedItemId = null;
+        updateComboBadge();
 
         els.gameScreen.classList.remove('active');
         els.homeScreen.classList.add('active');
