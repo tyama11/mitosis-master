@@ -365,9 +365,19 @@
         state.currentOniTargetStageId = correctEntry.stageId;
         state.selectedItemId = null;
 
-        els.oniCycleSvg.innerHTML = ONI_BOARD_GENERATOR.generateRandomCycleBoardSvg(correctEntry.stageId);
+        const svgMarkup = ONI_BOARD_GENERATOR.generateRandomCycleBoardSvg(correctEntry.stageId);
+        els.oniCycleSvg.innerHTML = svgMarkup;
 
-        const distractorPool = CYCLE_ITEMS.filter((c) => c.stageId !== correctEntry.stageId);
+        // M期と分裂期が両方ボード上にある時以外は、同義語どうしが同時に選択肢に出て迷わないよう除外
+        const hasBothMitosisSynonyms = svgMarkup.includes('data-stage="m"') && svgMarkup.includes('data-stage="mitosis"');
+        const distractorPool = CYCLE_ITEMS.filter((c) => {
+            if (c.stageId === correctEntry.stageId) return false;
+            if (!hasBothMitosisSynonyms) {
+                if (correctEntry.stageId === 'm' && c.stageId === 'mitosis') return false;
+                if (correctEntry.stageId === 'mitosis' && c.stageId === 'm') return false;
+            }
+            return true;
+        });
         shuffleArray(distractorPool);
         const choices = [correctEntry, ...distractorPool.slice(0, ONI_TRAY_SIZE - 1)].map((entry) => ({
             id: `item-${state.nextItemUid++}`,

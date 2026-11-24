@@ -1,6 +1,15 @@
 /**
- * 細胞周期「おに」モード用：
- * ランダムに「回転した円」または「開始位置をずらした一直線」のSVG（9箇所埋め＋1箇所だけ？）を生成するモジュール
+ * 細胞周期「おに」モード用ランダムボード生成モジュール
+ *
+ * 対応バリエーション：
+ * 1. 標準フル階層型（大枠「間期」「M期＝分裂期」＋ G1・S・G2・前期〜終期）
+ * 2. 間期・分裂期が連続する型（間期 → 前期 → 中期 → 後期 → 終期 が直列／円環で連続、分裂期括弧あり版＆大枠なし版）
+ * 3. 大枠（間期・分裂期）が書かれていないフラット型（G1→S→G2→前期→中期→後期→終期 ／ G1→S→G2→M）
+ *
+ * 進行方向バリエーション：
+ * - 横一直線（左→右、開始位置ランダムシフト）
+ * - 縦一直線（上→下のみ、開始位置ランダムシフト）
+ * - 円環（360°ランダム回転）
  */
 const ONI_BOARD_GENERATOR = (() => {
     'use strict';
@@ -18,52 +27,95 @@ const ONI_BOARD_GENERATOR = (() => {
         telophase: '終期'
     };
 
-    const LINEAR_SEQ = ['g1', 's', 'g2', 'prophase', 'metaphase', 'anaphase', 'telophase'];
+    const SEQ_7 = ['g1', 's', 'g2', 'prophase', 'metaphase', 'anaphase', 'telophase'];
+    const SEQ_5_CONTINUOUS = ['interphase', 'prophase', 'metaphase', 'anaphase', 'telophase'];
+    const SEQ_4_ALPHA = ['g1', 's', 'g2', 'm'];
+
     const INTERPHASE_SET = new Set(['g1', 's', 'g2']);
+    const MITOSIS_SUB_SET = new Set(['prophase', 'metaphase', 'anaphase', 'telophase']);
     const SKETCH_TARGET_SET = new Set(['interphase', 'prophase', 'metaphase', 'anaphase', 'telophase']);
 
+    function pickRandom(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
     /**
-     * 細胞周期「おに」用：9箇所埋め＋1箇所だけ「？」のランダムボードSVGを生成
-     * @param {string} targetStageId - 空欄「？」にするステージID
+     * 細胞周期「おに」用：他を埋めて1箇所だけ「？」にしたランダムボードSVGを生成
      */
     function generateRandomCycleBoardSvg(targetStageId) {
-        return generateRandomBoardInternal({ mode: 'cycle', targetStageId });
+        const eligibleStructures = ['full'];
+
+        // 間期と分裂期（前期〜終期）が連続するバージョン（分裂期＝M期の括弧つき）
+        if (!INTERPHASE_SET.has(targetStageId)) {
+            eligibleStructures.push('continuous_mito_bracket');
+        }
+        // 間期と分裂期（前期〜終期）が連続し、かつ大枠が一切書かれていないバージョン
+        if (SKETCH_TARGET_SET.has(targetStageId)) {
+            eligibleStructures.push('continuous_5_flat');
+        }
+        // 間期・分裂期の大枠が書かれていない7時期フラット連続バージョン
+        if (SEQ_7.includes(targetStageId)) {
+            eligibleStructures.push('flat_7_no_bracket');
+        }
+        // 間期・分裂期の大枠が書かれていない4記号（G1→S→G2→M）バージョン
+        if (SEQ_4_ALPHA.includes(targetStageId)) {
+            eligibleStructures.push('flat_4_no_bracket');
+        }
+
+        const structure = pickRandom(eligibleStructures);
+        return renderByStructure({ mode: 'cycle', targetStageId, structure });
     }
 
     /**
-     * 細胞スケッチ「おに」用：全箇所「？」＆回転円／シフト一直線をランダムに出すボードSVGを生成
+     * 細胞スケッチ「おに」用：全枠「？」で構造・向き・開始位置をランダム化したボードSVGを生成
      */
     function generateRandomSketchBoardSvg() {
-        return generateRandomBoardInternal({ mode: 'sketch', targetStageId: null });
+        const structures = [
+            'full',                     // 標準階層型
+            'continuous_mito_bracket',  // 間期→前期〜終期が連続（分裂期括弧あり）
+            'continuous_5_flat'         // 間期→前期〜終期が連続（大枠なし・間期は長枠／広角弧）
+        ];
+        const structure = pickRandom(structures);
+        return renderByStructure({ mode: 'sketch', targetStageId: null, structure });
     }
 
-    function generateRandomBoardInternal(opts) {
+    function renderByStructure(opts) {
+        const geometry = pickRandom(['horizontal', 'vertical', 'circle']);
         const swapMitosisPair = Math.random() < 0.5;
-        const roll = Math.random();
 
-        // 3パターンを均等にランダム出題：①横一直線（左→右）、②縦一直線（上→下）、③回転した円
-        if (roll < 1 / 3) {
-            const offset = Math.floor(Math.random() * LINEAR_SEQ.length);
-            return buildShiftedLinearSvg(opts, offset, swapMitosisPair);
+        switch (opts.structure) {
+            case 'continuous_5_flat':
+                return buildFlatSequenceSvg(opts, SEQ_5_CONTINUOUS, geometry, 'interphase');
+
+            case 'flat_7_no_bracket':
+                return buildFlatSequenceSvg(opts, SEQ_7, geometry, null);
+
+            case 'flat_4_no_bracket':
+                return buildFlatSequenceSvg(opts, SEQ_4_ALPHA, geometry, null);
+
+            case 'continuous_mito_bracket':
+                return buildContinuousWithMitoBracketSvg(opts, geometry, swapMitosisPair);
+
+            case 'full':
+            default:
+                if (geometry === 'horizontal') {
+                    return buildFullShiftedHorizontalSvg(opts, Math.floor(Math.random() * 7), swapMitosisPair);
+                }
+                if (geometry === 'vertical') {
+                    return buildFullShiftedVerticalSvg(opts, Math.floor(Math.random() * 7), swapMitosisPair);
+                }
+                return buildFullRotatedCircleSvg(opts, swapMitosisPair);
         }
-
-        if (roll < 2 / 3) {
-            const offset = Math.floor(Math.random() * LINEAR_SEQ.length);
-            return buildShiftedVerticalLinearSvg(opts, offset, swapMitosisPair);
-        }
-
-        const orientations = ['right', 'bottom', 'left', 'top'];
-        const orientation = orientations[Math.floor(Math.random() * orientations.length)];
-        const jitterChoices = [-24, -12, 0, 12, 24];
-        const jitterDeg = jitterChoices[Math.floor(Math.random() * jitterChoices.length)];
-        return buildRotatedCircleSvg(opts, orientation, jitterDeg, swapMitosisPair);
     }
 
-    function renderBoxNode(stageId, opts, x, y, w, h, fontSize = 19) {
-        const rx = Math.min(14, Math.round(h * 0.25));
+    // ======== 共通ボックス描画 ========
+    function renderBoxNode(stageId, opts, x, y, w, h, fontSize = 19, extraLongStyle = false) {
+        const rx = Math.min(15, Math.round(h * 0.26));
+        const doubleRect = extraLongStyle
+            ? `<rect x="${(-w / 2 + 4).toFixed(1)}" y="${(-h / 2 + 4).toFixed(1)}" width="${w - 8}" height="${h - 8}" rx="${Math.max(8, rx - 3)}" fill="none" stroke="#CBD5E1" stroke-width="1.3" stroke-dasharray="4 3" />`
+            : '';
 
         if (opts.mode === 'sketch') {
-            // スケッチ「おに」：全枠を「？」にし、間期・前期〜終期の5枠をドロップ／タップ対象にする
             const isSketchTarget = SKETCH_TARGET_SET.has(stageId);
             const roleClasses = isSketchTarget
                 ? 'sketch-target interactive-target masked'
@@ -72,6 +124,7 @@ const ONI_BOARD_GENERATOR = (() => {
                 <g class="stage-node ${roleClasses}" data-stage="${stageId}" data-accept="${stageId}" transform="translate(${x.toFixed(1)}, ${y.toFixed(1)})">
                     <g class="stage-visual">
                         <rect class="stage-box" x="${(-w / 2).toFixed(1)}" y="${(-h / 2).toFixed(1)}" width="${w}" height="${h}" rx="${rx}" />
+                        ${doubleRect}
                         <text class="stage-mystery" x="0" y="${(fontSize * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fontSize}" font-weight="800" fill="#475569">？</text>
                     </g>
                 </g>
@@ -96,18 +149,375 @@ const ONI_BOARD_GENERATOR = (() => {
         return `
             <g class="stage-node" data-stage="${stageId}" transform="translate(${x.toFixed(1)}, ${y.toFixed(1)})">
                 <rect x="${(-w / 2).toFixed(1)}" y="${(-h / 2).toFixed(1)}" width="${w}" height="${h}" rx="${rx}" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2.2" />
+                ${doubleRect}
                 <text x="0" y="${(fontSize * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fontSize}" font-weight="800" fill="#1E293B">${label}</text>
             </g>
         `;
     }
 
-    // ======== 1. 開始位置をランダムにずらした一直線の図 ========
-    function buildShiftedLinearSvg(opts, offset, swapMitosisPair) {
-        const seq = LINEAR_SEQ.map((_, i) => LINEAR_SEQ[(offset + i) % LINEAR_SEQ.length]);
+    function arrowDefs(id = 'oni-arr') {
+        return `
+            <defs>
+                <marker id="${id}" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="5.6" markerHeight="5.6" orient="auto">
+                    <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#64748B" />
+                </marker>
+            </defs>
+        `;
+    }
+
+    // ========================================================================
+    // A. 大枠なしフラット連続図（5時期連続／7時期連続／4記号連続 × 横・縦・円）
+    // ========================================================================
+    function buildFlatSequenceSvg(opts, baseSeq, geometry, longStageId) {
+        const n = baseSeq.length;
+        const offset = Math.floor(Math.random() * n);
+        const seq = baseSeq.map((_, i) => baseSeq[(offset + i) % n]);
+
+        if (geometry === 'horizontal') {
+            return buildFlatHorizontal(opts, seq, offset, longStageId);
+        }
+        if (geometry === 'vertical') {
+            return buildFlatVertical(opts, seq, offset, longStageId);
+        }
+        return buildFlatCircle(opts, baseSeq, longStageId);
+    }
+
+    function buildFlatHorizontal(opts, seq, offset, longStageId) {
+        const n = seq.length;
+        const cy = 270;
+        const gap = n >= 7 ? 16 : (n === 5 ? 24 : 34);
+        const baseW = n >= 7 ? 80 : (n === 5 ? 92 : 116);
+        const longW = 166;
+        const h = n >= 7 ? 56 : 62;
+        const font = n >= 7 ? 18 : 19;
+
+        const widths = seq.map((id) => (id === longStageId ? longW : baseW));
+        const totalW = widths.reduce((s, w) => s + w, 0) + gap * (n - 1);
+        let curLeft = (700 - totalW) / 2;
+
+        const centers = widths.map((w) => {
+            const cx = curLeft + w / 2;
+            curLeft += w + gap;
+            return cx;
+        });
+
+        const arrows = [];
+        if (offset > 0) {
+            const firstLeft = centers[0] - widths[0] / 2;
+            const lastRight = centers[n - 1] + widths[n - 1] / 2;
+            arrows.push(`<line x1="4" y1="${cy}" x2="${(firstLeft - 4).toFixed(1)}" y2="${cy}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+            arrows.push(`<line x1="${(lastRight + 3).toFixed(1)}" y1="${cy}" x2="695" y2="${cy}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+        }
+        for (let i = 0; i < n - 1; i++) {
+            const x1 = centers[i] + widths[i] / 2 + 2;
+            const x2 = centers[i + 1] - widths[i + 1] / 2 - 4;
+            arrows.push(`<line x1="${x1.toFixed(1)}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${cy}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+        }
+
+        const boxes = seq.map((id, i) =>
+            renderBoxNode(id, opts, centers[i], cy, widths[i], h, font, id === longStageId)
+        ).join('');
+
+        return `${arrowDefs()}${arrows.join('')}${boxes}`;
+    }
+
+    function buildFlatVertical(opts, seq, offset, longStageId) {
+        const n = seq.length;
+        const cx = 350;
+        const gap = n >= 7 ? 25 : (n === 5 ? 26 : 38);
+        const baseH = n >= 7 ? 44 : (n === 5 ? 52 : 58);
+        const longH = 96;
+        const w = n >= 7 ? 136 : 152;
+        const font = n >= 7 ? 17 : 19;
+
+        const heights = seq.map((id) => (id === longStageId ? longH : baseH));
+        const totalH = heights.reduce((s, hh) => s + hh, 0) + gap * (n - 1);
+        let curTop = (540 - totalH) / 2;
+
+        const centers = heights.map((hh) => {
+            const cy = curTop + hh / 2;
+            curTop += hh + gap;
+            return cy;
+        });
+
+        const arrows = [];
+        if (offset > 0) {
+            const firstTop = centers[0] - heights[0] / 2;
+            const lastBottom = centers[n - 1] + heights[n - 1] / 2;
+            arrows.push(`<line x1="${cx}" y1="5" x2="${cx}" y2="${(firstTop - 4).toFixed(1)}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+            arrows.push(`<line x1="${cx}" y1="${(lastBottom + 3).toFixed(1)}" x2="${cx}" y2="534" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+        }
+        for (let i = 0; i < n - 1; i++) {
+            const y1 = centers[i] + heights[i] / 2 + 2;
+            const y2 = centers[i + 1] - heights[i + 1] / 2 - 4;
+            arrows.push(`<line x1="${cx}" y1="${y1.toFixed(1)}" x2="${cx}" y2="${y2.toFixed(1)}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+        }
+
+        const boxes = seq.map((id, i) =>
+            renderBoxNode(id, opts, cx, centers[i], w, heights[i], font, id === longStageId)
+        ).join('');
+
+        return `${arrowDefs()}${arrows.join('')}${boxes}`;
+    }
+
+    function buildFlatCircle(opts, baseSeq, longStageId) {
+        const cx = 350;
+        const cy = 270;
+        const r = baseSeq.length >= 7 ? 190 : 176;
+        const rotDeg = Math.floor(Math.random() * 12) * 30;
+
+        // 各ステージの角度配分（間期が含まれる5時期連続では間期＝180°、前期〜終期＝各45°）
+        let spans;
+        if (longStageId === 'interphase' && baseSeq.length === 5) {
+            spans = [180, 45, 45, 45, 45];
+        } else if (baseSeq.length === 7) {
+            spans = [66, 66, 66, 40.5, 40.5, 40.5, 40.5];
+        } else {
+            spans = baseSeq.map(() => 360 / baseSeq.length);
+        }
+
+        let acc = rotDeg;
+        const sectors = baseSeq.map((id, i) => {
+            const start = acc;
+            const span = spans[i];
+            const mid = start + span / 2;
+            const end = start + span;
+            acc = end;
+            return { id, start, mid, end, span };
+        });
+
+        const pt = (deg, rad = r) => ({
+            x: cx + rad * Math.cos((deg * Math.PI) / 180),
+            y: cy + rad * Math.sin((deg * Math.PI) / 180)
+        });
+
+        // 長い間期アークがある場合は背景の太い円弧で期間の長さを視覚表現
+        let longArcBg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#E2E8F0" stroke-width="10" />`;
+        if (longStageId === 'interphase') {
+            const interSec = sectors[0];
+            const pStart = pt(interSec.start + 8);
+            const pEnd = pt(interSec.end - 8);
+            longArcBg += `<path d="M ${pStart.x.toFixed(1)} ${pStart.y.toFixed(1)} A ${r} ${r} 0 0 1 ${pEnd.x.toFixed(1)} ${pEnd.y.toFixed(1)}" fill="none" stroke="#CBD5E1" stroke-width="16" stroke-linecap="round" opacity="0.7" />`;
+        }
+
+        const arcArrows = sectors.map((sec, idx) => {
+            const next = sectors[(idx + 1) % sectors.length];
+            const marginCurr = sec.id === longStageId ? 24 : 18;
+            const marginNext = next.id === longStageId ? 24 : 18;
+            const a1 = sec.mid + marginCurr;
+            const a2 = (idx === sectors.length - 1 ? next.mid + 360 : next.mid) - marginNext;
+            if (a2 - a1 < 6) return '';
+            const p1 = pt(a1);
+            const p2 = pt(a2);
+            const largeArc = a2 - a1 > 180 ? 1 : 0;
+            return `<path d="M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} A ${r} ${r} 0 ${largeArc} 1 ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}" fill="none" stroke="#64748B" stroke-width="3" marker-end="url(#oni-arr)" />`;
+        }).join('');
+
+        const boxes = sectors.map((sec) => {
+            const pos = pt(sec.mid);
+            const isLong = sec.id === longStageId;
+            const bw = isLong ? 114 : (baseSeq.length >= 7 ? 88 : 96);
+            const bh = isLong ? 56 : (baseSeq.length >= 7 ? 46 : 50);
+            return renderBoxNode(sec.id, opts, pos.x, pos.y, bw, bh, 18, isLong);
+        }).join('');
+
+        return `${arrowDefs()}${longArcBg}${arcArrows}${boxes}`;
+    }
+
+    // ========================================================================
+    // B. 間期と分裂期（前期〜終期）が連続する図（分裂期＝M期の括弧つき × 横・縦・円）
+    // ========================================================================
+    function buildContinuousWithMitoBracketSvg(opts, geometry, swapMitosisPair) {
+        const leftPairId = swapMitosisPair ? 'mitosis' : 'm';
+        const rightPairId = swapMitosisPair ? 'm' : 'mitosis';
+        const offset = Math.floor(Math.random() * SEQ_5_CONTINUOUS.length);
+        const seq = SEQ_5_CONTINUOUS.map((_, i) => SEQ_5_CONTINUOUS[(offset + i) % SEQ_5_CONTINUOUS.length]);
+
+        if (geometry === 'horizontal') {
+            const xs = seq.map((_, i) => 78 + i * 136);
+            const rowY = 355;
+            const topY = 182;
+            const bracketY = 276;
+
+            // 分裂期（前期〜終期）の連続区間を抽出
+            const mitoRuns = [];
+            seq.forEach((id, idx) => {
+                if (!MITOSIS_SUB_SET.has(id)) return;
+                const prev = mitoRuns[mitoRuns.length - 1];
+                if (prev && prev.end === idx - 1) {
+                    prev.end = idx;
+                    prev.len++;
+                } else {
+                    mitoRuns.push({ start: idx, end: idx, len: 1 });
+                }
+            });
+            const mainMito = mitoRuns.reduce((a, b) => (a.len >= b.len ? a : b));
+            const mitoX = Math.max(160, Math.min(540, (xs[mainMito.start] + xs[mainMito.end]) / 2));
+
+            const brackets = mitoRuns.map((run) => {
+                const wrapLeft = mitoRuns.length === 2 && run.start === 0;
+                const wrapRight = mitoRuns.length === 2 && run.end === 4;
+                const lx = wrapLeft ? 10 : xs[run.start] - 44;
+                const rx = wrapRight ? 690 : xs[run.end] + 44;
+                if (wrapLeft) return `<path d="M ${lx} ${bracketY} L ${rx} ${bracketY} L ${rx} 312" fill="none" stroke="#475569" stroke-width="2.3" />`;
+                if (wrapRight) return `<path d="M ${lx} 312 L ${lx} ${bracketY} L ${rx} ${bracketY}" fill="none" stroke="#475569" stroke-width="2.3" />`;
+                return `<path d="M ${lx} 312 L ${lx} ${bracketY} L ${rx} ${bracketY} L ${rx} 312" fill="none" stroke="#475569" stroke-width="2.3" />`;
+            });
+
+            const connectors = mitoRuns.map((run) => {
+                const midX = (xs[run.start] + xs[run.end]) / 2;
+                if (run === mainMito) {
+                    return `<path d="M ${mitoX} ${topY + 28} L ${mitoX} 242 L ${midX} 242 L ${midX} ${bracketY}" fill="none" stroke="#475569" stroke-width="2.2" />`;
+                }
+                return `<path d="M ${mitoX} ${topY - 28} L ${mitoX} 112 L ${midX} 112 L ${midX} ${bracketY}" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />`;
+            });
+
+            const arrows = [];
+            if (offset > 0) {
+                arrows.push(`<line x1="6" y1="${rowY}" x2="22" y2="${rowY}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+                arrows.push(`<line x1="674" y1="${rowY}" x2="694" y2="${rowY}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+            }
+            for (let i = 0; i < 4; i++) {
+                arrows.push(`<line x1="${xs[i] + 52}" y1="${rowY}" x2="${xs[i + 1] - 54}" y2="${rowY}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+            }
+
+            const boxes = seq.map((id, i) =>
+                renderBoxNode(id, opts, xs[i], rowY, 100, 58, 19, id === 'interphase')
+            ).join('');
+
+            return `
+                ${arrowDefs()}
+                ${brackets.join('')}
+                ${connectors.join('')}
+                ${arrows.join('')}
+                <text x="${mitoX}" y="${topY + 8}" text-anchor="middle" font-size="23" font-weight="900" fill="#475569">＝</text>
+                ${renderBoxNode(leftPairId, opts, mitoX - 70, topY, 104, 56, 19)}
+                ${renderBoxNode(rightPairId, opts, mitoX + 70, topY, 104, 56, 19)}
+                ${boxes}
+            `;
+        }
+
+        if (geometry === 'vertical') {
+            const ys = seq.map((_, i) => 70 + i * 100);
+            const colX = 515;
+            const bracketX = 408;
+            const mitoCenterX = 205;
+
+            const mitoRuns = [];
+            seq.forEach((id, idx) => {
+                if (!MITOSIS_SUB_SET.has(id)) return;
+                const prev = mitoRuns[mitoRuns.length - 1];
+                if (prev && prev.end === idx - 1) {
+                    prev.end = idx;
+                    prev.len++;
+                } else {
+                    mitoRuns.push({ start: idx, end: idx, len: 1 });
+                }
+            });
+            const mainMito = mitoRuns.reduce((a, b) => (a.len >= b.len ? a : b));
+            const mitoY = Math.max(105, Math.min(435, (ys[mainMito.start] + ys[mainMito.end]) / 2));
+
+            const brackets = mitoRuns.map((run) => {
+                const wrapTop = mitoRuns.length === 2 && run.start === 0;
+                const wrapBottom = mitoRuns.length === 2 && run.end === 4;
+                const ty = wrapTop ? 14 : ys[run.start] - 24;
+                const by = wrapBottom ? 526 : ys[run.end] + 24;
+                if (wrapTop) return `<path d="M ${bracketX} ${ty} L ${bracketX} ${by} L 446 ${by}" fill="none" stroke="#475569" stroke-width="2.3" />`;
+                if (wrapBottom) return `<path d="M 446 ${ty} L ${bracketX} ${ty} L ${bracketX} ${by}" fill="none" stroke="#475569" stroke-width="2.3" />`;
+                return `<path d="M 446 ${ty} L ${bracketX} ${ty} L ${bracketX} ${by} L 446 ${by}" fill="none" stroke="#475569" stroke-width="2.3" />`;
+            });
+
+            const connectors = mitoRuns.map((run) => {
+                const midY = (ys[run.start] + ys[run.end]) / 2;
+                if (run === mainMito) {
+                    return `<path d="M ${mitoCenterX + 122} ${mitoY} L 368 ${mitoY} L 368 ${midY} L ${bracketX} ${midY}" fill="none" stroke="#475569" stroke-width="2.2" />`;
+                }
+                const edgeY = run.start === 0 ? 20 : 520;
+                return `<path d="M ${mitoCenterX - 122} ${mitoY} L 42 ${mitoY} L 42 ${edgeY} L ${bracketX} ${edgeY}" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />`;
+            });
+
+            const arrows = [];
+            if (offset > 0) {
+                arrows.push(`<line x1="${colX}" y1="8" x2="${colX}" y2="34" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+                arrows.push(`<line x1="${colX}" y1="502" x2="${colX}" y2="530" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+            }
+            for (let i = 0; i < 4; i++) {
+                arrows.push(`<line x1="${colX}" y1="${ys[i] + 29}" x2="${colX}" y2="${ys[i + 1] - 31}" stroke="#64748B" stroke-width="2.6" marker-end="url(#oni-arr)" />`);
+            }
+
+            const boxes = seq.map((id, i) =>
+                renderBoxNode(id, opts, colX, ys[i], 124, 52, 18, id === 'interphase')
+            ).join('');
+
+            return `
+                ${arrowDefs()}
+                ${brackets.join('')}
+                ${connectors.join('')}
+                ${arrows.join('')}
+                <text x="${mitoCenterX}" y="${mitoY + 8}" text-anchor="middle" font-size="22" font-weight="900" fill="#475569">＝</text>
+                ${renderBoxNode(leftPairId, opts, mitoCenterX - 70, mitoY, 104, 52, 18)}
+                ${renderBoxNode(rightPairId, opts, mitoCenterX + 70, mitoY, 104, 52, 18)}
+                ${boxes}
+            `;
+        }
+
+        // 円環で間期と前期〜終期が連続し、内側／横に [M期＝分裂期] が対応する図
+        const onRight = Math.random() < 0.5;
+        const cx = onRight ? 235 : 465;
+        const cy = 270;
+        const r = 165;
+        // 間期を外側側(180° or 0°)に置き、反対側180°に前期〜終期を連続配置
+        const interMid = onRight ? 180 : 0;
+        const subMids = onRight ? [-67.5, -22.5, 22.5, 67.5] : [112.5, 157.5, 202.5, 247.5];
+        const pt = (deg, rad = r) => ({
+            x: cx + rad * Math.cos((deg * Math.PI) / 180),
+            y: cy + rad * Math.sin((deg * Math.PI) / 180)
+        });
+
+        const allMids = [interMid, ...subMids];
+        const allIds = ['interphase', 'prophase', 'metaphase', 'anaphase', 'telophase'];
+
+        const arcArrows = allMids.map((deg, idx) => {
+            const nextDegRaw = allMids[(idx + 1) % allMids.length];
+            let a1 = deg + (idx === 0 ? 24 : 17);
+            let a2 = nextDegRaw - (idx === 4 ? 24 : 17);
+            while (a2 <= a1) a2 += 360;
+            const p1 = pt(a1);
+            const p2 = pt(a2);
+            const large = a2 - a1 > 180 ? 1 : 0;
+            return `<path d="M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} A ${r} ${r} 0 ${large} 1 ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}" fill="none" stroke="#64748B" stroke-width="3" marker-end="url(#oni-arr)" />`;
+        }).join('');
+
+        const mitoPanelX = onRight ? 580 : 120;
+        const braceX = onRight ? 462 : 238;
+        const tipX = onRight ? 425 : 275;
+
+        const ringBoxes = allIds.map((id, i) => {
+            const p = pt(allMids[i]);
+            return renderBoxNode(id, opts, p.x, p.y, id === 'interphase' ? 106 : 92, 50, 18, id === 'interphase');
+        }).join('');
+
+        return `
+            ${arrowDefs()}
+            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#E2E8F0" stroke-width="10" />
+            ${arcArrows}
+            <path d="M ${tipX} 110 L ${braceX} 110 L ${braceX} 430 L ${tipX} 430" fill="none" stroke="#64748B" stroke-width="2.3" stroke-dasharray="5 4" />
+            <line x1="${braceX}" y1="270" x2="${onRight ? mitoPanelX - 56 : mitoPanelX + 56}" y2="270" stroke="#64748B" stroke-width="2.2" />
+            <text x="${mitoPanelX}" y="278" text-anchor="middle" font-size="22" font-weight="900" fill="#475569">＝</text>
+            ${renderBoxNode(leftPairId, opts, mitoPanelX, 222, 108, 52, 18)}
+            ${renderBoxNode(rightPairId, opts, mitoPanelX, 318, 108, 52, 18)}
+            ${ringBoxes}
+        `;
+    }
+
+    // ========================================================================
+    // C. 標準フル階層型（横シフト・縦シフト・回転円）
+    // ========================================================================
+    function buildFullShiftedHorizontalSvg(opts, offset, swapMitosisPair) {
+        const seq = SEQ_7.map((_, i) => SEQ_7[(offset + i) % SEQ_7.length]);
         const xs = seq.map((_, i) => 62 + i * 96);
         const rowY = 356;
 
-        // 連続区間（ラン）に分割
         const runs = [];
         seq.forEach((id, idx) => {
             const group = INTERPHASE_SET.has(id) ? 'inter' : 'mito';
@@ -125,7 +535,6 @@ const ONI_BOARD_GENERATOR = (() => {
         const mainInter = interRuns.reduce((a, b) => (a.len >= b.len ? a : b));
         const mainMito = mitoRuns.reduce((a, b) => (a.len >= b.len ? a : b));
 
-        // 上段ボックスのX位置を決定（重ならないよう配置）
         let interX = (xs[mainInter.start] + xs[mainInter.end]) / 2;
         let mitoX = (xs[mainMito.start] + xs[mainMito.end]) / 2;
 
@@ -144,25 +553,18 @@ const ONI_BOARD_GENERATOR = (() => {
         const topY = 186;
         const bracketY = 278;
 
-        // 括弧パスの描画（端で途切れて反対側に続く場合もオープン括弧＋破線ブリッジで表現）
-        const bracketPaths = [];
-        runs.forEach((run) => {
+        const bracketPaths = runs.map((run) => {
             const isWrappedLeft = runs.length === 3 && run.start === 0;
             const isWrappedRight = runs.length === 3 && run.end === 6;
             const leftX = isWrappedLeft ? 8 : xs[run.start] - 34;
             const rightX = isWrappedRight ? 692 : xs[run.end] + 34;
             const stroke = run.group === 'inter' ? '#64748B' : '#475569';
 
-            if (isWrappedLeft) {
-                bracketPaths.push(`<path d="M ${leftX} ${bracketY} L ${rightX} ${bracketY} L ${rightX} 314" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
-            } else if (isWrappedRight) {
-                bracketPaths.push(`<path d="M ${leftX} 314 L ${leftX} ${bracketY} L ${rightX} ${bracketY}" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
-            } else {
-                bracketPaths.push(`<path d="M ${leftX} 314 L ${leftX} ${bracketY} L ${rightX} ${bracketY} L ${rightX} 314" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
-            }
+            if (isWrappedLeft) return `<path d="M ${leftX} ${bracketY} L ${rightX} ${bracketY} L ${rightX} 314" fill="none" stroke="${stroke}" stroke-width="2.3" />`;
+            if (isWrappedRight) return `<path d="M ${leftX} 314 L ${leftX} ${bracketY} L ${rightX} ${bracketY}" fill="none" stroke="${stroke}" stroke-width="2.3" />`;
+            return `<path d="M ${leftX} 314 L ${leftX} ${bracketY} L ${rightX} ${bracketY} L ${rightX} 314" fill="none" stroke="${stroke}" stroke-width="2.3" />`;
         });
 
-        // 上段ボックスからメイン括弧・分割括弧への接続線
         const connectors = [];
         interRuns.forEach((run) => {
             const midX = (xs[run.start] + xs[run.end]) / 2;
@@ -182,31 +584,21 @@ const ONI_BOARD_GENERATOR = (() => {
             }
         });
 
-        // 矢印（周期がループしていることを示す両端矢印つき）
         const arrows = [];
         if (offset > 0) {
-            arrows.push(`<line x1="4" y1="${rowY}" x2="18" y2="${rowY}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arrow)" />`);
+            arrows.push(`<line x1="4" y1="${rowY}" x2="18" y2="${rowY}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arr)" />`);
+            arrows.push(`<line x1="680" y1="${rowY}" x2="695" y2="${rowY}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arr)" />`);
         }
         for (let i = 0; i < 6; i++) {
-            arrows.push(`<line x1="${xs[i] + 41}" y1="${rowY}" x2="${xs[i + 1] - 43}" y2="${rowY}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arrow)" />`);
-        }
-        if (offset > 0) {
-            arrows.push(`<line x1="680" y1="${rowY}" x2="695" y2="${rowY}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arrow)" />`);
+            arrows.push(`<line x1="${xs[i] + 41}" y1="${rowY}" x2="${xs[i + 1] - 43}" y2="${rowY}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arr)" />`);
         }
 
         const leftPairId = swapMitosisPair ? 'mitosis' : 'm';
         const rightPairId = swapMitosisPair ? 'm' : 'mitosis';
-
-        const rowBoxes = seq.map((stageId, i) =>
-            renderBoxNode(stageId, opts, xs[i], rowY, 80, 56, 18)
-        ).join('');
+        const rowBoxes = seq.map((stageId, i) => renderBoxNode(stageId, opts, xs[i], rowY, 80, 56, 18)).join('');
 
         return `
-            <defs>
-                <marker id="oni-arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto">
-                    <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#64748B" />
-                </marker>
-            </defs>
+            ${arrowDefs()}
             ${bracketPaths.join('')}
             ${connectors.join('')}
             ${arrows.join('')}
@@ -218,9 +610,8 @@ const ONI_BOARD_GENERATOR = (() => {
         `;
     }
 
-    // ======== 1-B. 開始位置をランダムにずらした縦一直線（上→下のみ）の図 ========
-    function buildShiftedVerticalLinearSvg(opts, offset, swapMitosisPair) {
-        const seq = LINEAR_SEQ.map((_, i) => LINEAR_SEQ[(offset + i) % LINEAR_SEQ.length]);
+    function buildFullShiftedVerticalSvg(opts, offset, swapMitosisPair) {
+        const seq = SEQ_7.map((_, i) => SEQ_7[(offset + i) % SEQ_7.length]);
         const ys = seq.map((_, i) => 54 + i * 72);
         const colX = 525;
 
@@ -260,25 +651,18 @@ const ONI_BOARD_GENERATOR = (() => {
         const interBoxX = 220;
         const mitoCenterX = 212;
 
-        // 縦方向の括弧パス（上下端をまたぐ場合はオープン括弧で表現）
-        const bracketPaths = [];
-        runs.forEach((run) => {
+        const bracketPaths = runs.map((run) => {
             const isWrappedTop = runs.length === 3 && run.start === 0;
             const isWrappedBottom = runs.length === 3 && run.end === 6;
             const topY = isWrappedTop ? 12 : ys[run.start] - 18;
             const bottomY = isWrappedBottom ? 528 : ys[run.end] + 18;
             const stroke = run.group === 'inter' ? '#64748B' : '#475569';
 
-            if (isWrappedTop) {
-                bracketPaths.push(`<path d="M ${bracketX} ${topY} L ${bracketX} ${bottomY} L 452 ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
-            } else if (isWrappedBottom) {
-                bracketPaths.push(`<path d="M 452 ${topY} L ${bracketX} ${topY} L ${bracketX} ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
-            } else {
-                bracketPaths.push(`<path d="M 452 ${topY} L ${bracketX} ${topY} L ${bracketX} ${bottomY} L 452 ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" stroke-linejoin="round" />`);
-            }
+            if (isWrappedTop) return `<path d="M ${bracketX} ${topY} L ${bracketX} ${bottomY} L 452 ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" />`;
+            if (isWrappedBottom) return `<path d="M 452 ${topY} L ${bracketX} ${topY} L ${bracketX} ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" />`;
+            return `<path d="M 452 ${topY} L ${bracketX} ${topY} L ${bracketX} ${bottomY} L 452 ${bottomY}" fill="none" stroke="${stroke}" stroke-width="2.3" />`;
         });
 
-        // 左側のまとめボックスから縦括弧への接続線
         const connectors = [];
         interRuns.forEach((run) => {
             const midY = (ys[run.start] + ys[run.end]) / 2;
@@ -300,31 +684,21 @@ const ONI_BOARD_GENERATOR = (() => {
             }
         });
 
-        // 上から下への進行矢印（↓のみ）
         const arrows = [];
         if (offset > 0) {
-            arrows.push(`<line x1="${colX}" y1="6" x2="${colX}" y2="25" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-v-arrow)" />`);
+            arrows.push(`<line x1="${colX}" y1="6" x2="${colX}" y2="25" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arr)" />`);
+            arrows.push(`<line x1="${colX}" y1="511" x2="${colX}" y2="531" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arr)" />`);
         }
         for (let i = 0; i < 6; i++) {
-            arrows.push(`<line x1="${colX}" y1="${ys[i] + 24}" x2="${colX}" y2="${ys[i + 1] - 26}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-v-arrow)" />`);
-        }
-        if (offset > 0) {
-            arrows.push(`<line x1="${colX}" y1="511" x2="${colX}" y2="531" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-v-arrow)" />`);
+            arrows.push(`<line x1="${colX}" y1="${ys[i] + 24}" x2="${colX}" y2="${ys[i + 1] - 26}" stroke="#64748B" stroke-width="2.5" marker-end="url(#oni-arr)" />`);
         }
 
         const leftPairId = swapMitosisPair ? 'mitosis' : 'm';
         const rightPairId = swapMitosisPair ? 'm' : 'mitosis';
-
-        const colBoxes = seq.map((stageId, i) =>
-            renderBoxNode(stageId, opts, colX, ys[i], 116, 44, 17)
-        ).join('');
+        const colBoxes = seq.map((stageId, i) => renderBoxNode(stageId, opts, colX, ys[i], 116, 44, 17)).join('');
 
         return `
-            <defs>
-                <marker id="oni-v-arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto">
-                    <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#64748B" />
-                </marker>
-            </defs>
+            ${arrowDefs()}
             ${bracketPaths.join('')}
             ${connectors.join('')}
             ${arrows.join('')}
@@ -336,17 +710,12 @@ const ONI_BOARD_GENERATOR = (() => {
         `;
     }
 
-    // ======== 2. ランダムな角度・向きに回転した円の周期図 ========
-    function buildRotatedCircleSvg(opts, orientation, jitterDeg, swapMitosisPair) {
-        const baseAngles = {
-            right: 0,
-            bottom: 90,
-            left: 180,
-            top: 270
-        };
+    function buildFullRotatedCircleSvg(opts, swapMitosisPair) {
+        const orientation = pickRandom(['right', 'bottom', 'left', 'top']);
+        const jitterDeg = pickRandom([-24, -12, 0, 12, 24]);
+        const baseAngles = { right: 0, bottom: 90, left: 180, top: 270 };
         const mAngleDeg = baseAngles[orientation] + jitterDeg;
 
-        // 円の中心と半径を向きに応じて配置
         const layout = {
             right: { cx: 198, cy: 270, r: 125 },
             left: { cx: 502, cy: 270, r: 125 },
@@ -355,23 +724,17 @@ const ONI_BOARD_GENERATOR = (() => {
         }[orientation];
 
         const { cx, cy, r } = layout;
-        const pt = (deg, radius = r) => {
-            const rad = (deg * Math.PI) / 180;
-            return {
-                x: cx + radius * Math.cos(rad),
-                y: cy + radius * Math.sin(rad)
-            };
-        };
+        const pt = (deg, radius = r) => ({
+            x: cx + radius * Math.cos((deg * Math.PI) / 180),
+            y: cy + radius * Math.sin((deg * Math.PI) / 180)
+        });
 
-        // 時計回り: M(mAngle) → G1(+90°) → S(+180°) → G2(+270°)
         const posM = pt(mAngleDeg);
         const posG1 = pt(mAngleDeg + 90);
         const posS = pt(mAngleDeg + 180);
         const posG2 = pt(mAngleDeg + 270);
-        // 間期は S 寄りの円内中央に配置
         const posInter = pt(mAngleDeg + 180, 14);
 
-        // M期と＝で結ばれる片割れ（分裂期 or M期）と、4段階（前期〜終期）の配置
         const ringMId = swapMitosisPair ? 'mitosis' : 'm';
         const pairedMId = swapMitosisPair ? 'm' : 'mitosis';
 
@@ -387,9 +750,7 @@ const ONI_BOARD_GENERATOR = (() => {
             eqPos = { x: (posM.x + 48 + posPaired.x - 48) / 2, y: posM.y + 8 };
             subBoxRect = { x: 540, y: 48, w: 146, h: 444 };
             subPositions = [106, 215, 325, 434].map((y) => ({ x: 613, y, w: 122, h: 56 }));
-            subArrows = [138, 247, 357].map((y1) =>
-                `<line x1="613" y1="${y1}" x2="613" y2="${y1 + 42}" stroke="#64748B" stroke-width="2.8" marker-end="url(#oni-cir-arrow)" />`
-            ).join('');
+            subArrows = [138, 247, 357].map((y1) => `<line x1="613" y1="${y1}" x2="613" y2="${y1 + 42}" stroke="#64748B" stroke-width="2.8" marker-end="url(#oni-arr)" />`).join('');
             zoomLines = `
                 <line x1="${posPaired.x + 50}" y1="${posPaired.y - 20}" x2="540" y2="64" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
                 <line x1="${posPaired.x + 50}" y1="${posPaired.y + 20}" x2="540" y2="476" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
@@ -399,9 +760,7 @@ const ONI_BOARD_GENERATOR = (() => {
             eqPos = { x: (posM.x - 48 + posPaired.x + 48) / 2, y: posM.y + 8 };
             subBoxRect = { x: 14, y: 48, w: 146, h: 444 };
             subPositions = [106, 215, 325, 434].map((y) => ({ x: 87, y, w: 122, h: 56 }));
-            subArrows = [138, 247, 357].map((y1) =>
-                `<line x1="87" y1="${y1}" x2="87" y2="${y1 + 42}" stroke="#64748B" stroke-width="2.8" marker-end="url(#oni-cir-arrow)" />`
-            ).join('');
+            subArrows = [138, 247, 357].map((y1) => `<line x1="87" y1="${y1}" x2="87" y2="${y1 + 42}" stroke="#64748B" stroke-width="2.8" marker-end="url(#oni-arr)" />`).join('');
             zoomLines = `
                 <line x1="${posPaired.x - 50}" y1="${posPaired.y - 20}" x2="160" y2="64" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
                 <line x1="${posPaired.x - 50}" y1="${posPaired.y + 20}" x2="160" y2="476" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
@@ -411,40 +770,28 @@ const ONI_BOARD_GENERATOR = (() => {
             eqPos = { x: posM.x, y: (posM.y + 25 + posPaired.y - 25) / 2 + 7 };
             subBoxRect = { x: 42, y: 442, w: 616, h: 84 };
             subPositions = [118, 273, 427, 582].map((x) => ({ x, y: 484, w: 112, h: 54 }));
-            subArrows = [178, 333, 487].map((x1) =>
-                `<line x1="${x1}" y1="484" x2="${x1 + 32}" y2="484" stroke="#64748B" stroke-width="2.8" marker-end="url(#oni-cir-arrow)" />`
-            ).join('');
+            subArrows = [178, 333, 487].map((x1) => `<line x1="${x1}" y1="484" x2="${x1 + 32}" y2="484" stroke="#64748B" stroke-width="2.8" marker-end="url(#oni-arr)" />`).join('');
             zoomLines = `
                 <line x1="${posPaired.x - 48}" y1="${posPaired.y + 24}" x2="60" y2="442" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
                 <line x1="${posPaired.x + 48}" y1="${posPaired.y + 24}" x2="640" y2="442" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
             `;
         } else {
-            // top
             posPaired = { x: posM.x, y: 158 };
             eqPos = { x: posM.x, y: (posM.y - 25 + posPaired.y + 25) / 2 + 7 };
             subBoxRect = { x: 42, y: 14, w: 616, h: 84 };
             subPositions = [118, 273, 427, 582].map((x) => ({ x, y: 56, w: 112, h: 54 }));
-            subArrows = [178, 333, 487].map((x1) =>
-                `<line x1="${x1}" y1="56" x2="${x1 + 32}" y2="56" stroke="#64748B" stroke-width="2.8" marker-end="url(#oni-cir-arrow)" />`
-            ).join('');
+            subArrows = [178, 333, 487].map((x1) => `<line x1="${x1}" y1="56" x2="${x1 + 32}" y2="56" stroke="#64748B" stroke-width="2.8" marker-end="url(#oni-arr)" />`).join('');
             zoomLines = `
                 <line x1="${posPaired.x - 48}" y1="${posPaired.y - 24}" x2="60" y2="98" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
                 <line x1="${posPaired.x + 48}" y1="${posPaired.y - 24}" x2="640" y2="98" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" />
             `;
         }
 
-        // 回転させた扇形と時計回りアーク矢印（基準: M=0° を mAngleDeg 回転）
         const sCut = r * Math.SQRT1_2;
         const arcArrow = (startDeg, endDeg) => {
-            const p1 = {
-                x: cx + r * Math.cos((startDeg * Math.PI) / 180),
-                y: cy + r * Math.sin((startDeg * Math.PI) / 180)
-            };
-            const p2 = {
-                x: cx + r * Math.cos((endDeg * Math.PI) / 180),
-                y: cy + r * Math.sin((endDeg * Math.PI) / 180)
-            };
-            return `<path d="M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} A ${r} ${r} 0 0 1 ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}" fill="none" stroke="#64748B" stroke-width="3.3" marker-end="url(#oni-cir-arrow)" />`;
+            const p1 = pt(startDeg);
+            const p2 = pt(endDeg);
+            return `<path d="M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} A ${r} ${r} 0 0 1 ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}" fill="none" stroke="#64748B" stroke-width="3.3" marker-end="url(#oni-arr)" />`;
         };
 
         const subStageIds = ['prophase', 'metaphase', 'anaphase', 'telophase'];
@@ -454,30 +801,20 @@ const ONI_BOARD_GENERATOR = (() => {
         }).join('');
 
         return `
-            <defs>
-                <marker id="oni-cir-arrow" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                    <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#64748B" />
-                </marker>
-            </defs>
-
-            <!-- 回転する円扇形と時計回り矢印 -->
+            ${arrowDefs()}
             <g transform="rotate(${mAngleDeg} ${cx} ${cy})">
                 <path d="M ${cx} ${cy} L ${(cx + sCut).toFixed(1)} ${(cy + sCut).toFixed(1)} A ${r} ${r} 0 1 1 ${(cx + sCut).toFixed(1)} ${(cy - sCut).toFixed(1)} Z" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="5 4" />
                 <path d="M ${cx} ${cy} L ${(cx + sCut).toFixed(1)} ${(cy - sCut).toFixed(1)} A ${r} ${r} 0 0 1 ${(cx + sCut).toFixed(1)} ${(cy + sCut).toFixed(1)} Z" fill="#F1F5F9" stroke="#94A3B8" stroke-width="2" />
                 <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#CBD5E1" stroke-width="9" opacity="0.55" />
             </g>
-
             ${arcArrow(mAngleDeg + 26, mAngleDeg + 64)}
             ${arcArrow(mAngleDeg + 116, mAngleDeg + 154)}
             ${arcArrow(mAngleDeg + 206, mAngleDeg + 244)}
             ${arcArrow(mAngleDeg + 296, mAngleDeg + 334)}
-
             ${zoomLines}
             <rect x="${subBoxRect.x}" y="${subBoxRect.y}" width="${subBoxRect.w}" height="${subBoxRect.h}" rx="18" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2.3" />
             ${subArrows}
-
             <text x="${eqPos.x.toFixed(1)}" y="${eqPos.y.toFixed(1)}" text-anchor="middle" font-size="22" font-weight="900" fill="#475569">＝</text>
-
             ${renderBoxNode('interphase', opts, posInter.x, posInter.y, 98, 52, 18)}
             ${renderBoxNode('g1', opts, posG1.x, posG1.y, 88, 48, 18)}
             ${renderBoxNode('s', opts, posS.x, posS.y, 86, 48, 18)}
