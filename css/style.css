@@ -367,9 +367,9 @@ body {
 /* SVGの表示領域とピン配置レイヤーを1pxのズレもなく完全一致させる */
 .graph-wrapper {
     position: relative;
-    width: min(100%, calc(68vh * 680 / 540), 680px);
+    width: min(100%, calc(68vh * 700 / 540), 700px);
     height: auto;
-    aspect-ratio: 680 / 540;
+    aspect-ratio: 700 / 540;
     cursor: pointer;
 }
 
@@ -883,7 +883,7 @@ body {
         gap: 10px;
     }
     .graph-wrapper {
-        width: min(100%, calc(45vh * 680 / 540));
+        width: min(100%, calc(45vh * 700 / 540));
         height: auto;
     }
     .tray {

@@ -40,7 +40,7 @@ const CYCLE_ITEMS = [
         emoji: '🔄',
         color: '#0D9488',
         bg: '#CCFBF1',
-        hint: '円グラフ上でG₂期の次にくる、分裂期を表すアルファベット記号'
+        hint: '円周上でG₂期の次にくる、分裂期を表すアルファベット記号'
     },
     {
         stageId: 'mitosis',
@@ -48,7 +48,7 @@ const CYCLE_ITEMS = [
         emoji: '✨',
         color: '#0D9488',
         bg: '#CCFBF1',
-        hint: '前期・中期・後期・終期からなる期間全体の名称'
+        hint: 'M期と同じ意味の日本語名（前期〜終期の4段階に分かれる）'
     },
     {
         stageId: 'prophase',

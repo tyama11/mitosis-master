@@ -583,13 +583,13 @@
         const centerX = ((boxRect.left + boxRect.width / 2 - wrapperRect.left) / wrapperRect.width) * 100;
         const centerY = ((boxRect.top + boxRect.height / 2 - wrapperRect.top) / wrapperRect.height) * 100;
 
-        let pinX = centerX + 7.4;
+        let pinX = centerX + 6.6;
         let pinY = centerY;
 
         if (!isOni) {
             const count = state.stagePlacedCount[item.stageId] || 0;
             state.stagePlacedCount[item.stageId] = count + 1;
-            pinX = centerX + (count === 0 ? -7.4 : 7.4);
+            pinX = centerX + (count === 0 ? -6.6 : 6.6);
         }
 
         const pin = document.createElement('div');
