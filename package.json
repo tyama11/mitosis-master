@@ -9,6 +9,7 @@
     "build": "node scripts/build.mjs"
   },
   "devDependencies": {
-    "tsrs": "next"
+    "tsrs": "7.1.0-beta.tsrs5",
+    "@types/node": "^22.15.0"
   }
 }

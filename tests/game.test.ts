@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { renderCellSvg } from '../src/cells.ts';
 import { CYCLE_ITEMS, SKETCH_STAGES, getOniRankInfo } from '../src/data.ts';
@@ -200,5 +203,57 @@ describe('storage & sound', () => {
         assert.equal(fx.toggleMute(), true);
         assert.equal(fx.isMuted(), true);
         assert.equal(fx.toggleMute(), false);
+    });
+});
+
+describe('DOM & index.html integrity', () => {
+    const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
+    const html = readFileSync(join(rootDir, 'index.html'), 'utf8');
+    const appTs = readFileSync(join(rootDir, 'src/app.ts'), 'utf8');
+
+    it('every byId(...) referenced in src/app.ts exists in index.html', () => {
+        const idMatches = [...appTs.matchAll(/byId(?:<[^>]+>)?\('([^']+)'\)/g)];
+        assert.ok(idMatches.length > 10, 'Expected at least 10 byId calls in src/app.ts');
+
+        for (const match of idMatches) {
+            const id = match[1];
+            assert.ok(id, 'Expected captured id');
+            assert.ok(
+                html.includes(`id="${id}"`),
+                `index.html is missing element with id="${id}"`
+            );
+        }
+    });
+
+    it('linear-svg and circle-svg each contain all 10 stage nodes and m/mitosis synonyms', () => {
+        const linearStart = html.indexOf('id="linear-svg"');
+        const circleStart = html.indexOf('id="circle-svg"');
+        const oniStart = html.indexOf('id="oni-cycle-svg"');
+        assert.ok(linearStart !== -1 && circleStart > linearStart && oniStart > circleStart);
+
+        const linearSection = html.slice(linearStart, circleStart);
+        const circleSection = html.slice(circleStart, oniStart);
+        const requiredStages: readonly CycleStageId[] = [
+            'interphase', 'g1', 's', 'g2', 'm', 'mitosis', 'prophase', 'metaphase', 'anaphase', 'telophase'
+        ];
+
+        for (const section of [linearSection, circleSection]) {
+            for (const stage of requiredStages) {
+                assert.ok(
+                    section.includes(`data-stage="${stage}"`),
+                    `Missing data-stage="${stage}"`
+                );
+            }
+            const synMatches = section.match(/data-accept="m,mitosis"/g) ?? [];
+            assert.equal(synMatches.length, 2, 'Expected both m and mitosis to accept m,mitosis');
+        }
+    });
+
+    it('index.html loads js/app.js as module with matching cache-busting version', () => {
+        const cssMatch = html.match(/href="css\/style\.css\?v=([^"]+)"/);
+        const jsMatch = html.match(/<script type="module" src="js\/app\.js\?v=([^"]+)"><\/script>/);
+        assert.ok(cssMatch?.[1], 'Missing css/style.css?v=... link');
+        assert.ok(jsMatch?.[1], 'Missing <script type="module" src="js/app.js?v=...">');
+        assert.equal(cssMatch[1], jsMatch[1], 'CSS and JS cache-buster versions should match');
     });
 });

@@ -16,8 +16,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install tsrs (oxc-project/tsrs)
-        run: npm install --no-save tsrs@next
+      - name: Install dependencies
+        run: npm install
 
       - name: Type-check with tsrs
         run: npx tsrs --noEmit --fast
