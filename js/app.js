@@ -37,7 +37,9 @@
         gameScreen: document.getElementById('game-screen'),
         mainArea: document.querySelector('.main'),
         homeDesc: document.getElementById('home-desc'),
+        ruleNormalText: document.getElementById('rule-normal-text'),
         ruleOniItem: document.getElementById('rule-oni-item'),
+        ruleOniText: document.getElementById('rule-oni-text'),
         btnOni: document.getElementById('btn-oni'),
         homeMuteBtn: document.getElementById('home-mute-btn'),
         gameMuteBtn: document.getElementById('game-mute-btn'),
@@ -218,6 +220,8 @@
         });
 
         els.homeDesc.textContent = config.description;
+        els.ruleNormalText.innerHTML = config.normalRuleHtml;
+        els.ruleOniText.innerHTML = config.oniRuleHtml;
         updateDifficultyVisibility();
     }
 
@@ -362,7 +366,7 @@
         state.selectedItemId = null;
 
         if (state.category === 'sketch') {
-            // スケッチ「おに」：5時期（間期・前期〜終期）のうち1箇所だけを「？」にし、3枚の細胞スケッチから選ばせる
+            // スケッチ「おに」：1箇所だけを「？」にし、「図だけの3択」または「文章だけの3択」をランダムに出題
             const stageCandidates = SKETCH_STAGES.filter((s) => s.id !== state.currentOniTargetStageId);
             const correctStage = stageCandidates[Math.floor(Math.random() * stageCandidates.length)];
             state.currentOniTargetStageId = correctStage.id;
@@ -372,7 +376,13 @@
             const otherStages = SKETCH_STAGES.filter((s) => s.id !== correctStage.id);
             shuffleArray(otherStages);
             const chosenStages = [correctStage, ...otherStages.slice(0, ONI_TRAY_SIZE - 1)];
-            const choices = chosenStages.map((st) => createOniItemForSketch(st));
+
+            const askSentenceOnly = Math.random() < 0.5;
+            els.trayTitleText.textContent = askSentenceOnly ? '❓ ？の時期の特徴は？' : '❓ ？の時期の図は？';
+
+            const choices = chosenStages.map((st) => (
+                askSentenceOnly ? createOniSentenceItem(st) : createOniItemForSketch(st)
+            ));
             shuffleArray(choices);
             state.items = choices;
 
@@ -380,7 +390,7 @@
             return;
         }
 
-        // 細胞周期「おに」：全10項目のうち1箇所だけを「？」にし、3枚の名称カードから選ばせる
+        // 細胞周期「おに」：1箇所だけを「？」にし、「単語だけの3択」または「文章だけの3択」をランダムに出題
         const candidates = CYCLE_ITEMS.filter((c) => c.stageId !== state.currentOniTargetStageId);
         const correctEntry = candidates[Math.floor(Math.random() * candidates.length)];
         state.currentOniTargetStageId = correctEntry.stageId;
@@ -398,13 +408,31 @@
             return true;
         });
         shuffleArray(distractorPool);
-        const choices = [correctEntry, ...distractorPool.slice(0, ONI_TRAY_SIZE - 1)].map((entry) => ({
-            id: `item-${state.nextItemUid++}`,
-            stageId: entry.stageId,
-            stageName: entry.name,
-            kind: 'cycle',
-            name: entry.name
-        }));
+
+        const askSentenceOnly = Math.random() < 0.5;
+        els.trayTitleText.textContent = askSentenceOnly ? '❓ ？の時期の特徴は？' : '❓ ？に入る名称は？';
+
+        const chosenEntries = [correctEntry, ...distractorPool.slice(0, ONI_TRAY_SIZE - 1)];
+        const choices = chosenEntries.map((entry) => {
+            if (askSentenceOnly) {
+                const sentences = entry.oniSentences;
+                const text = sentences[Math.floor(Math.random() * sentences.length)];
+                return {
+                    id: `item-${state.nextItemUid++}`,
+                    stageId: entry.stageId,
+                    stageName: entry.name,
+                    kind: 'sentence-only',
+                    name: text
+                };
+            }
+            return {
+                id: `item-${state.nextItemUid++}`,
+                stageId: entry.stageId,
+                stageName: entry.name,
+                kind: 'word-only',
+                name: entry.name
+            };
+        });
         shuffleArray(choices);
         state.items = choices;
 
@@ -473,12 +501,24 @@
             id: `item-${state.nextItemUid++}`,
             stageId: stage.id,
             stageName: stage.stageName,
-            kind: 'sketch',
+            kind: 'sketch-only',
             cellType: def.cellType,
             rotated: Boolean(def.rotated),
             variant: def.variant || 'standard',
-            label: def.label || (def.cellType === 'plant' ? '植物細胞' : '動物細胞'),
+            angleNote: def.angleNote || '',
             color: stage.color
+        };
+    }
+
+    function createOniSentenceItem(stage) {
+        const sentences = stage.oniSentences;
+        const text = sentences[Math.floor(Math.random() * sentences.length)];
+        return {
+            id: `item-${state.nextItemUid++}`,
+            stageId: stage.id,
+            stageName: stage.stageName,
+            kind: 'sentence-only',
+            name: text
         };
     }
 
@@ -586,12 +626,36 @@
         state.items.forEach((item) => {
             const card = document.createElement('div');
             const isSelected = state.selectedItemId === item.id;
-            const isTextOnlyCard = item.kind === 'cycle' && isAdvanced;
 
-            card.className = `bio-card${isSelected ? ' selected' : ''}${isTextOnlyCard ? ' advanced-card' : ''}`;
+            let extraClass = '';
+            if (item.kind === 'word-only') extraClass = ' advanced-card';
+            else if (item.kind === 'sketch-only') extraClass = ' sketch-only-card';
+            else if (item.kind === 'sentence-only') extraClass = ' sentence-only-card';
+
+            card.className = `bio-card${isSelected ? ' selected' : ''}${extraClass}`;
             card.draggable = true;
 
-            if (item.kind === 'sketch') {
+            if (item.kind === 'sketch-only') {
+                // スケッチ「おに」：図だけパターン（文章なし）
+                const svgMarkup = renderCellSvg(item.stageId, item.cellType, {
+                    monochrome: true,
+                    rotated: item.rotated,
+                    variant: item.variant || 'standard'
+                });
+                const angleTag = item.angleNote ? `<span class="polar-mini-tag">${item.angleNote}</span>` : '';
+                card.innerHTML = `
+                    <div class="cell-thumb">${svgMarkup}</div>
+                    ${angleTag}
+                `;
+            } else if (item.kind === 'word-only' || item.kind === 'sentence-only') {
+                // おに：単語だけパターン ／ 文章だけパターン
+                card.innerHTML = `
+                    <div class="info">
+                        <div class="name">${item.name}</div>
+                    </div>
+                `;
+            } else if (item.kind === 'sketch') {
+                // スケッチ「かんたん」「ふつう」：どちらでも説明文を表示
                 const svgMarkup = renderCellSvg(item.stageId, item.cellType, {
                     monochrome: isAdvanced,
                     rotated: item.rotated,
@@ -600,9 +664,7 @@
                 const labelText = isAdvanced
                     ? item.label
                     : (item.cellType === 'plant' ? '🌱 植物細胞' : '🐾 動物細胞');
-                const hintHtml = (!isAdvanced && item.hint)
-                    ? `<div class="hint">${item.hint}</div>`
-                    : '';
+                const hintHtml = item.hint ? `<div class="hint">${item.hint}</div>` : '';
 
                 card.innerHTML = `
                     <div class="cell-thumb">${svgMarkup}</div>
@@ -612,12 +674,16 @@
                     </div>
                 `;
             } else if (isAdvanced) {
+                // 細胞周期「ふつう」：アイコン・色を消して単語＋説明文を表示
+                const hintHtml = item.hint ? `<div class="hint">${item.hint}</div>` : '';
                 card.innerHTML = `
                     <div class="info">
                         <div class="name">${item.name}</div>
+                        ${hintHtml}
                     </div>
                 `;
             } else {
+                // 細胞周期「かんたん」：色アイコン＋単語＋説明文を表示
                 const hintHtml = item.hint ? `<div class="hint">${item.hint}</div>` : '';
                 card.innerHTML = `
                     <div class="feature-icon" style="background-color: ${item.bg}; border: 2px solid ${item.color};">${item.emoji}</div>

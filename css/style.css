@@ -997,6 +997,36 @@ body {
     100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
 }
 
+.bio-card.sketch-only-card {
+    justify-content: center;
+    padding: 10px;
+}
+
+.bio-card.sketch-only-card .cell-thumb {
+    width: 84px;
+    height: 84px;
+}
+
+.bio-card.sketch-only-card .cell-thumb svg {
+    width: 76px;
+    height: 76px;
+}
+
+.polar-mini-tag {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--text-sub);
+    background: #F1F5F9;
+    padding: 2px 7px;
+    border-radius: 999px;
+}
+
+.bio-card.sentence-only-card .name {
+    font-size: 13.5px;
+    line-height: 1.45;
+    text-align: left;
+}
+
 .bio-card.advanced-card {
     justify-content: center;
 }
