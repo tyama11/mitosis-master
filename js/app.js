@@ -37,6 +37,7 @@
         gameScreen: document.getElementById('game-screen'),
         mainArea: document.querySelector('.main'),
         homeDesc: document.getElementById('home-desc'),
+        earnedTitleBanner: document.getElementById('earned-title-banner'),
         ruleNormalText: document.getElementById('rule-normal-text'),
         ruleOniItem: document.getElementById('rule-oni-item'),
         ruleOniText: document.getElementById('rule-oni-text'),
@@ -157,8 +158,20 @@
         });
 
         els.graphWrapper.addEventListener('click', (e) => {
+            if (e.detail === 0) return; // キーボード由来のクリックは keydown 側で処理
             handlePlacementAttempt(e.clientX, e.clientY);
         });
+
+        // キーボード：図の枠にフォーカスして Enter / Space で配置
+        els.graphWrapper.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const node = e.target.closest ? e.target.closest('.stage-node') : null;
+            if (!node || !node.classList.contains('interactive-target')) return;
+            e.preventDefault();
+            placeOnFocusedStage(node);
+        });
+
+        document.addEventListener('keydown', handleGlobalKeydown);
 
         setCategory('cycle');
         updateTabScores();
@@ -191,15 +204,26 @@
         entries.forEach(({ category, el }) => {
             const saved = localStorage.getItem(getOniBestKey(category));
             if (saved !== null) {
-                const bestNum = Number(saved);
-                const rankInfo = getOniRankInfo(category, bestNum);
-                el.textContent = `${rankInfo.icon} ${rankInfo.rank}・${bestNum}問`;
-                el.classList.toggle('rank-s', rankInfo.rank === 'S');
+                el.textContent = `👹 ${saved}問`;
+                el.classList.remove('rank-s');
                 el.hidden = false;
             } else {
                 el.hidden = true;
             }
         });
+        updateCurrentCategoryTitle();
+    }
+
+    function updateCurrentCategoryTitle() {
+        const saved = localStorage.getItem(getOniBestKey(state.category));
+        if (saved === null) {
+            els.earnedTitleBanner.hidden = true;
+            return;
+        }
+        const rankInfo = getOniRankInfo(state.category, Number(saved));
+        els.earnedTitleBanner.className = `earned-title-banner ${rankInfo.className}`;
+        els.earnedTitleBanner.textContent = `称号：${rankInfo.icon} ${rankInfo.title}`;
+        els.earnedTitleBanner.hidden = false;
     }
 
     function updateDifficultyVisibility(animateReveal = false) {
@@ -223,6 +247,7 @@
         els.ruleNormalText.innerHTML = config.normalRuleHtml;
         els.ruleOniText.innerHTML = config.oniRuleHtml;
         updateDifficultyVisibility();
+        updateCurrentCategoryTitle();
     }
 
     // ======== ゲーム開始 ========
@@ -265,13 +290,13 @@
         if (isOni) {
             // 両タブとも「おに」は1箇所だけの空欄「？」に入るカードを3択から選ぶ形式
             els.trayTitleText.textContent = isSketch ? '❓ ？の時期の細胞は？' : '❓ ？に入るのは？';
-            els.trayHint.textContent = '👆タップで回答';
+            els.trayHint.textContent = '👆クリック または 1・2・3キーで回答';
             setupNextOniQuestion();
             updateOniHud();
             startOniTimer();
         } else {
             els.trayTitleText.textContent = categoryConfig.trayTitle;
-            els.trayHint.textContent = '👆タップで選択';
+            els.trayHint.textContent = '👆カードを選んで図の枠をクリック';
             setupStaticBoardNodes(state.category, difficulty);
             state.items = buildStandardItems(state.category);
             state.totalQuestions = state.items.length;
@@ -617,13 +642,19 @@
 
     // ======== カード一覧の描画 ========
     function renderCards() {
+        // 再描画後もキーボードのフォーカス位置を保つ
+        const focusedEl = document.activeElement;
+        const hadFocusInList = !!(focusedEl && els.cardList.contains(focusedEl));
+        const focusedItemId = hadFocusInList ? focusedEl.dataset.itemId : null;
+
         els.cardList.innerHTML = '';
 
         const isOni = state.difficulty === 'oni';
         const isAdvanced = state.difficulty === 'normal' || isOni;
         const singleBlankOni = isOniSingleBlankMode();
+        els.cardList.classList.toggle('oni-choices', singleBlankOni);
 
-        state.items.forEach((item) => {
+        state.items.forEach((item, index) => {
             const card = document.createElement('div');
             const isSelected = state.selectedItemId === item.id;
 
@@ -634,6 +665,12 @@
 
             card.className = `bio-card${isSelected ? ' selected' : ''}${extraClass}`;
             card.draggable = true;
+            card.tabIndex = 0;
+            card.dataset.itemId = String(item.id);
+            card.setAttribute('role', singleBlankOni ? 'button' : 'listitem');
+            if (!singleBlankOni) {
+                card.setAttribute('aria-pressed', String(isSelected));
+            }
 
             if (item.kind === 'sketch-only') {
                 // スケッチ「おに」：図だけパターン（文章なし）
@@ -694,6 +731,18 @@
                 `;
             }
 
+            if (singleBlankOni && index < 9) {
+                card.insertAdjacentHTML('afterbegin', `<span class="key-badge" aria-hidden="true">${index + 1}</span>`);
+                card.setAttribute('aria-keyshortcuts', String(index + 1));
+            }
+
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    card.click();
+                }
+            });
+
             card.addEventListener('click', () => {
                 if (!state.isPlaying) return;
                 if (singleBlankOni) {
@@ -716,6 +765,77 @@
 
             els.cardList.appendChild(card);
         });
+
+        if (hadFocusInList) {
+            const sameCard = focusedItemId
+                ? els.cardList.querySelector(`[data-item-id="${focusedItemId}"]`)
+                : null;
+            const fallback = sameCard || els.cardList.querySelector('.bio-card');
+            if (fallback) fallback.focus({ preventScroll: true });
+        }
+
+        syncStageFocusability();
+    }
+
+    // ======== 図の枠をキーボードで選べるようにする ========
+    function syncStageFocusability() {
+        const canPlace = state.isPlaying && !isOniSingleBlankMode();
+        let blankNo = 0;
+        [els.linearSvg, els.circleSvg].forEach((svg) => {
+            const isActive = svg === getActiveSvg();
+            svg.querySelectorAll('.stage-node').forEach((node) => {
+                const focusable = canPlace && isActive && node.classList.contains('interactive-target');
+                if (focusable) {
+                    blankNo += 1;
+                    node.setAttribute('tabindex', '0');
+                    node.setAttribute('role', 'button');
+                    const label = node.classList.contains('masked')
+                        ? `空欄の枠 ${blankNo}`
+                        : `${node.dataset.defaultLabel || ''}の枠`;
+                    node.setAttribute('aria-label', label);
+                } else {
+                    node.removeAttribute('tabindex');
+                    node.removeAttribute('role');
+                    node.removeAttribute('aria-label');
+                }
+            });
+        });
+    }
+
+    function placeOnFocusedStage(node) {
+        if (!state.selectedItemId) {
+            showToast('👆 先に右のカードを選んでね');
+            return;
+        }
+        const box = node.querySelector('.stage-box') || node;
+        const r = box.getBoundingClientRect();
+        handlePlacementAttempt(r.left + r.width / 2, r.top + r.height / 2);
+        // 正解・不正解後も、キーボード操作を続けやすいようカードへ戻す
+        if (state.isPlaying) {
+            const firstCard = els.cardList.querySelector('.bio-card');
+            if (firstCard) firstCard.focus({ preventScroll: true });
+        }
+    }
+
+    function handleGlobalKeydown(e) {
+        if (!els.gameScreen.classList.contains('active') || !state.isPlaying) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        if (isOniSingleBlankMode() && /^[1-9]$/.test(e.key)) {
+            const cards = els.cardList.querySelectorAll('.bio-card');
+            const target = cards[Number(e.key) - 1];
+            if (target) {
+                e.preventDefault();
+                target.click();
+            }
+            return;
+        }
+
+        if (e.key === 'Escape' && state.selectedItemId) {
+            e.preventDefault();
+            state.selectedItemId = null;
+            renderCards();
+        }
     }
 
     // ======== ステージボックス検出＆ハイライト ========
