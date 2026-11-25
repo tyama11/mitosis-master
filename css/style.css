@@ -1,18 +1,21 @@
 /* ======== EdTech風 カラーパレット（顕微鏡・バイオロジーテーマ） ======== */
 :root {
-    --bg-color: #F4FBF9;
-    --surface: #F4FBF9;
-    --md-surface-container-low: #EEF6F4;
-    --md-surface-container: #E6F0EE;
-    --md-surface-container-high: #DCEAE7;
-    --primary: #006A60;
-    --primary-hover: #005048;
-    --success: #006A60;
+    --bg-color: #EFFBF8;
+    --surface: #EFFBF8;
+    --md-surface-container-low: #E4F5F1;
+    --md-surface-container: #D8EFEA;
+    --md-surface-container-high: #C9E7E0;
+    --primary: #006B5F;
+    --primary-hover: #005047;
+    --success: #006B5F;
     --md-on-primary: #FFFFFF;
-    --md-primary-container: #9EF2E4;
+    --md-primary-container: #74F8E5;
     --md-on-primary-container: #00201C;
-    --md-secondary-container: #CCE8E2;
-    --md-on-secondary-container: #05201C;
+    --md-secondary-container: #B4EFE5;
+    --md-on-secondary-container: #00201B;
+    --md-tertiary: #6750A4;
+    --md-tertiary-container: #EADDFF;
+    --md-on-tertiary-container: #21005D;
     --md-outline: #6F7977;
     --md-outline-variant: #BEC9C6;
     --text-main: #161D1C;
@@ -20,7 +23,9 @@
     --card-bg: #FFFFFF;
     --border: #BEC9C6;
 
-    /* Material Design 3 Elevation */
+    /* Material 3 Expressive Motion & Elevation */
+    --m3-spring-fast: cubic-bezier(0.42, 1.67, 0.21, 0.90);
+    --m3-spring-spatial: cubic-bezier(0.38, 1.21, 0.22, 1.00);
     --md-elev-1: 0 1px 2px rgba(0, 0, 0, 0.14), 0 1px 3px 1px rgba(0, 0, 0, 0.08);
     --md-elev-2: 0 1px 2px rgba(0, 0, 0, 0.16), 0 2px 6px 2px rgba(0, 0, 0, 0.10);
     --md-elev-3: 0 4px 8px 3px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.18);
