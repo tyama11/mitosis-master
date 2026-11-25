@@ -1,0 +1,14 @@
+{
+  "name": "mitosis-master",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsrs --noEmit --fast",
+    "test": "node --test tests/*.test.ts",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "tsrs": "next"
+  }
+}

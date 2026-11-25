@@ -1,21 +1,30 @@
 /* ======== EdTech風 カラーパレット（顕微鏡・バイオロジーテーマ） ======== */
 :root {
-    --bg-color: #F2F9FB;
+    --bg-color: #E6EEF4;
+    --surface: #E6EEF4;
+    --surface-tint: #EDF3F8;
     --primary: #0D9488;
     --primary-hover: #0F766E;
     --success: #0D9488;
-    --text-main: #334155;
-    --text-sub: #64748B;
-    --card-bg: #FFFFFF;
-    --border: #E2E8F0;
+    --text-main: #2D3E50;
+    --text-sub: #5B6E82;
+    --card-bg: #E6EEF4;
+    --border: rgba(255, 255, 255, 0.72);
 
-    /* 難易度ごとのティールグラデーション */
-    --level-1: #5EEAD4; /* かんたん (薄ティール) */
+    /* ニューモーフィズム用デュアルシャドウ */
+    --neu-raised: 6px 6px 14px #C3CFD9, -6px -6px 14px #FFFFFF;
+    --neu-raised-sm: 4px 4px 9px #C3CFD9, -4px -4px 9px #FFFFFF;
+    --neu-hover: 7px 7px 16px #BCC8D3, -7px -7px 16px #FFFFFF;
+    --neu-inset: inset 4px 4px 8px #C5D1DC, inset -4px -4px 8px #FFFFFF;
+    --neu-inset-sm: inset 3px 3px 6px #C3CFD9, inset -3px -3px 6px #FFFFFF;
+
+    /* 難易度ごとのアクセント */
+    --level-1: #5EEAD4;
     --level-1-shadow: #0D9488;
-    --level-2: #0D9488; /* ふつう (ティール) */
+    --level-2: #0D9488;
     --level-2-shadow: #115E59;
-    --level-4: #0F172A; /* おに (ダークネイビー) */
-    --level-4-shadow: #000000;
+    --level-4: #1E293B;
+    --level-4-shadow: #0F172A;
 }
 
 * {
@@ -52,7 +61,7 @@ body {
 
 /* ======== ホーム画面（全画面・横長2カラム／内側の小窓なし） ======== */
 #home-screen {
-    background: radial-gradient(circle at top right, #CCFBF1, #F0F9FF 60%);
+    background: var(--bg-color);
     overflow-y: auto;
 }
 
@@ -61,14 +70,15 @@ body {
     align-items: center;
     gap: 16px;
     padding: 10px clamp(16px, 4vw, 56px);
-    background: rgba(255, 255, 255, 0.75);
-    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: 0 4px 12px rgba(195, 207, 217, 0.45);
     flex-shrink: 0;
 }
 
 .mute-btn {
-    border: 1.5px solid var(--border);
-    background: #F8FAFC;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--neu-raised-sm);
     color: var(--text-main);
     font-family: inherit;
     font-size: 14px;
@@ -82,7 +92,10 @@ body {
 }
 
 .mute-btn:hover {
-    background: #E2E8F0;
+    box-shadow: var(--neu-hover);
+}
+.mute-btn:active {
+    box-shadow: var(--neu-inset-sm);
 }
 
 .header-right {
@@ -99,9 +112,10 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 6px;
-    background: #E2E8F0;
-    padding: 5px;
-    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--neu-inset);
+    padding: 6px;
+    border-radius: 16px;
 }
 
 .category-tab {
@@ -130,9 +144,9 @@ body {
 }
 
 .category-tab.active {
-    background: var(--card-bg);
+    background: var(--surface-tint);
     color: var(--primary-hover);
-    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.18);
+    box-shadow: var(--neu-raised-sm);
 }
 
 .tab-score {
@@ -217,8 +231,11 @@ body {
 .rules {
     list-style: none;
     margin: 0;
-    padding: 0 0 0 16px;
-    border-left: 4px solid #5EEAD4;
+    padding: 16px 20px;
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--neu-inset);
+    border-left: 4px solid #2DD4BF;
 }
 
 .rule-item {
@@ -290,41 +307,41 @@ kbd {
 }
 
 .btn-easy {
-    background: var(--level-1);
+    background: linear-gradient(145deg, #6FF0DC, #47D7C0);
     color: #134E4A;
-    box-shadow: 0 4px 0 var(--level-1-shadow);
+    box-shadow: var(--neu-raised);
+    border: 1px solid rgba(255, 255, 255, 0.65);
 }
 .btn-easy:hover {
-    background: #2DD4BF;
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 var(--level-1-shadow);
+    box-shadow: var(--neu-hover);
+    transform: translateY(-1px);
 }
 
 .btn-normal {
-    background: var(--level-2);
+    background: linear-gradient(145deg, #14A89B, #0B7C72);
     color: white;
-    box-shadow: 0 4px 0 var(--level-2-shadow);
+    box-shadow: var(--neu-raised);
+    border: 1px solid rgba(255, 255, 255, 0.25);
 }
 .btn-normal:hover {
-    background: #0F766E;
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 var(--level-2-shadow);
+    box-shadow: var(--neu-hover);
+    transform: translateY(-1px);
 }
 
 .btn-oni {
-    background: var(--level-4);
+    background: linear-gradient(145deg, #273549, #151E2E);
     color: white;
-    box-shadow: 0 4px 0 var(--level-4-shadow);
+    box-shadow: var(--neu-raised);
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 .btn-oni:hover {
-    background: #000000;
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 var(--level-4-shadow);
+    box-shadow: var(--neu-hover);
+    transform: translateY(-1px);
 }
 
 .mode-btn:active {
-    transform: translateY(4px);
-    box-shadow: none;
+    transform: translateY(1px);
+    box-shadow: var(--neu-inset-sm);
 }
 
 /* ======== ゲーム画面ヘッダー（低めでボード領域を最大化） ======== */
@@ -335,12 +352,12 @@ kbd {
 .header {
     height: var(--header-h);
     flex-shrink: 0;
-    background: var(--card-bg);
+    background: var(--surface);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    border-bottom: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(195, 207, 217, 0.45);
     z-index: 10;
 }
 .progress-container {
@@ -419,9 +436,11 @@ kbd {
 
 .progress-bar-bg {
     flex: 1;
-    height: 12px;
-    background: #E2E8F0;
-    border-radius: 6px;
+    height: 14px;
+    background: var(--surface);
+    box-shadow: var(--neu-inset-sm);
+    border-radius: 999px;
+    padding: 2px;
     overflow: hidden;
 }
 
@@ -458,11 +477,12 @@ kbd {
 }
 
 .reset-btn {
-    padding: 6px 12px;
+    padding: 6px 14px;
     min-height: 38px;
     border-radius: 12px;
-    border: 2px solid var(--border);
-    background: transparent;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--neu-raised-sm);
     color: var(--text-sub);
     font-family: inherit;
     cursor: pointer;
@@ -474,8 +494,11 @@ kbd {
 }
 
 .reset-btn:hover {
-    background: #F1F5F9;
+    box-shadow: var(--neu-hover);
     color: var(--text-main);
+}
+.reset-btn:active {
+    box-shadow: var(--neu-inset-sm);
 }
 
 .reset-icon {
@@ -636,8 +659,8 @@ kbd {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: var(--card-bg);
-    border-left: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: -4px 0 14px rgba(195, 207, 217, 0.4);
     padding: 10px 14px 12px;
 }
 
@@ -691,10 +714,11 @@ kbd {
 /* カードスタイル */
 .bio-card {
     position: relative;
-    background: white;
+    background: var(--surface);
+    box-shadow: var(--neu-raised-sm);
     padding: 8px 10px;
-    border-radius: 14px;
-    border: 2px solid var(--border);
+    border-radius: 16px;
+    border: 1.5px solid var(--border);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -705,9 +729,9 @@ kbd {
 }
 
 .bio-card:hover {
-    border-color: var(--primary);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(13, 148, 136, 0.12);
+    border-color: rgba(13, 148, 136, 0.45);
+    transform: translateY(-1px);
+    box-shadow: var(--neu-hover);
 }
 
 .bio-card:active {
@@ -716,17 +740,17 @@ kbd {
 
 .bio-card.selected {
     border-color: var(--primary);
-    background: #F0FDFA;
-    transform: scale(1.02);
-    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.2), 0 0 0 3px rgba(13, 148, 136, 0.28);
+    background: var(--surface-tint);
+    box-shadow: var(--neu-inset), 0 0 0 2px rgba(13, 148, 136, 0.25);
 }
 
 .cell-thumb {
     width: 64px;
     height: 64px;
     border-radius: 12px;
-    background: #F8FAFC;
-    border: 1.5px solid #CBD5E1;
+    background: var(--surface);
+    box-shadow: var(--neu-inset-sm);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     flex-shrink: 0;
     display: flex;
     align-items: center;

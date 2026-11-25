@@ -1,18 +1,37 @@
-/**
- * 体細胞分裂の顕微鏡スケッチ SVG 生成モジュール
- *
- * - stage: 'interphase' | 'prophase' | 'metaphase' | 'anaphase' | 'telophase'
- * - cellType: 'plant' | 'animal'
- * - options: {
- *     monochrome?: boolean,
- *     rotated?: boolean,
- *     variant?: 'standard' | 'polar' | 'tilted'
- *   }
- */
-function renderCellSvg(stage, cellType, options = {}) {
+                                                                         
+
+                                    
+                                  
+                               
+                                     
+ 
+
+                       
+                          
+                              
+                              
+                              
+                           
+                               
+                             
+                                
+                           
+ 
+
+                 
+                       
+                       
+ 
+
+/** 体細胞分裂の顕微鏡スケッチ SVG 生成 */
+export function renderCellSvg(
+    stage               ,
+    cellType          ,
+    options                    = {}
+)         {
     const { monochrome = false, rotated = false, variant = 'standard' } = options;
 
-    const palette = monochrome
+    const palette              = monochrome
         ? {
             wall: '#334155',
             wallFill: '#FFFFFF',
@@ -70,7 +89,7 @@ function renderCellSvg(stage, cellType, options = {}) {
 }
 
 /** 極方向から見た中期：核膜はなく、凝縮した染色体が中央付近に輪状（菊花状）に並ぶ */
-function renderPolarMetaphaseInterior(p) {
+function renderPolarMetaphaseInterior(p             )         {
     const arms = [0, 60, 120, 180, 240, 300].map((deg) => `
         <g transform="rotate(${deg} 40 40)">
             <path d="M 36 24 L 40 31 L 44 24" fill="none" stroke="${p.chrom}" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round" />
@@ -79,7 +98,7 @@ function renderPolarMetaphaseInterior(p) {
     return `<g>${arms}</g>`;
 }
 
-function renderCellOutline(stage, cellType, p) {
+function renderCellOutline(stage               , cellType          , p             )         {
     if (cellType === 'plant') {
         return `
             <rect x="11" y="9" width="58" height="62" rx="7" fill="${p.wallFill}" stroke="${p.wall}" stroke-width="3" />
@@ -105,7 +124,7 @@ function renderCellOutline(stage, cellType, p) {
     return `<circle cx="40" cy="40" r="29" fill="${p.cytoFill}" stroke="${p.membrane}" stroke-width="2.6" />`;
 }
 
-function renderAsters(poles, p) {
+function renderAsters(poles                  , p             )         {
     return poles.map(({ x, y }) => `
         <g stroke="${p.centrosome}" stroke-width="1.2" opacity="0.85">
             <line x1="${x - 5}" y1="${y}" x2="${x + 5}" y2="${y}" />
@@ -117,7 +136,7 @@ function renderAsters(poles, p) {
     `).join('');
 }
 
-function renderStageInterior(stage, cellType, p) {
+function renderStageInterior(stage               , cellType          , p             )         {
     const isAnimal = cellType === 'animal';
 
     switch (stage) {
@@ -216,8 +235,8 @@ function renderStageInterior(stage, cellType, p) {
                 <circle cx="44" cy="55" r="1.2" fill="${p.chromSoft}" />
             `;
         }
-
-        default:
-            return '';
     }
 }
+
+
+//# sourceURL=cells.ts

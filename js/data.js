@@ -1,7 +1,14 @@
-/**
- * 左タブ「細胞周期で覚える」用の10項目データ
- */
-const CYCLE_ITEMS = [
+             
+             
+                   
+                 
+               
+             
+                  
+                    
+
+/** 左タブ「細胞周期で覚える」用の10項目データ */
+export const CYCLE_ITEMS                          = [
     {
         stageId: 'interphase',
         name: '間期',
@@ -122,12 +129,8 @@ const CYCLE_ITEMS = [
     }
 ];
 
-/**
- * 右タブ「細胞スケッチで覚える」用の5時期データ
- * - normalOni: 通常出題プール
- * - trickOni: たまに混ざるひっかけ出題プール
- */
-const SKETCH_STAGES = [
+/** 右タブ「細胞スケッチで覚える」用の5時期データ */
+export const SKETCH_STAGES                            = [
     {
         id: 'interphase',
         stageName: '間期',
@@ -244,14 +247,14 @@ const SKETCH_STAGES = [
 ];
 
 /** 学習カテゴリごとの表示設定 */
-const CATEGORY_CONFIG = {
+export const CATEGORY_CONFIG                                             = {
     cycle: {
         label: '🔄 細胞周期',
         trayTitle: '🔄 周期カード',
         description: 'カードを選んで、細胞周期の正しい位置に当てはめよう！',
         normalRuleHtml: '<b>ふつう</b>：円の周期図 ＋ 特徴の説明つき',
         oniRuleHtml: '<b>おに</b>：60秒TA（単語だけ／文章だけがランダム出題！）',
-        startToast: '🔄 カードを選んで、正しい枠をタップしてね',
+        startToast: '🔄 カードを選んで、正しい枠をクリックしてね',
         oniToast: '👹 単語だけ＆文章だけランダム出題！5連続で+3秒！'
     },
     sketch: {
@@ -260,22 +263,20 @@ const CATEGORY_CONFIG = {
         description: '細胞の観察スケッチを選んで、正しい時期に配置しよう！',
         normalRuleHtml: '<b>ふつう</b>：円の周期図 ＋ 特徴の説明つき',
         oniRuleHtml: '<b>おに</b>：60秒TA（図だけ／文章だけがランダム出題！）',
-        startToast: '🔬 細胞スケッチを選んで、正しい時期をタップしてね',
+        startToast: '🔬 細胞スケッチを選んで、正しい時期をクリックしてね',
         oniToast: '👹 図だけ＆文章だけランダム出題！5連続で+3秒！'
     }
 };
 
 /** 難易度ごとの表示名 */
-const DIFFICULTY_LABELS = {
+export const DIFFICULTY_LABELS                                       = {
     easy: '🔰 かんたん',
     normal: '🧪 ふつう',
     oni: '👹 おに (60秒TA)'
 };
 
-/**
- * おにモードのスコアに応じたランク・称号判定
- */
-function getOniRankInfo(category, score) {
+/** おにモードのスコアに応じたランク・称号判定 */
+export function getOniRankInfo(category          , score        )           {
     const thresholds = category === 'cycle'
         ? { s: 25, a: 18, b: 10 }
         : { s: 18, a: 12, b: 7 };
@@ -311,3 +312,6 @@ function getOniRankInfo(category, score) {
         className: 'rank-c'
     };
 }
+
+
+//# sourceURL=data.ts

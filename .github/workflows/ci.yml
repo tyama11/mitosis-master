@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install tsrs (oxc-project/tsrs)
+        run: npm install --no-save tsrs@next
+
+      - name: Type-check with tsrs
+        run: npx tsrs --noEmit --fast
+
+      - name: Run tests
+        run: node --test tests/*.test.ts
+
+      - name: Verify compiled js/ output is up to date
+        run: |
+          node scripts/build.mjs
+          git diff --exit-code js/
