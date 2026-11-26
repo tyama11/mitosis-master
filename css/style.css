@@ -1367,3 +1367,53 @@ button:focus-visible,
         font-size: 28px;
     }
 }
+
+
+/* ======== 役割ごとのパネルグループ化（M3 Expressive Surface Containers） ======== */
+.home-info {
+    background: #FFFFFF;
+    border: 1.5px solid var(--md-outline-variant);
+    border-radius: 28px;
+    padding: clamp(18px, 3vh, 32px);
+    box-shadow: var(--md-elev-1);
+}
+
+.home-actions {
+    background: var(--md-surface-container-low);
+    border: 1.5px solid var(--md-outline-variant);
+    border-radius: 28px;
+    padding: clamp(18px, 3vh, 28px);
+    box-shadow: var(--md-elev-1);
+}
+
+.main {
+    padding: 10px 14px;
+    gap: 14px;
+    background: var(--bg-color);
+}
+
+.graph-container {
+    background: #FFFFFF;
+    border: 1.5px solid var(--md-outline-variant);
+    border-radius: 24px;
+    box-shadow: var(--md-elev-1);
+    padding: 8px 12px;
+}
+
+.graph-wrapper {
+    width: min(100%, calc((100vh - var(--header-h) - 38px) * 700 / 540));
+}
+
+@supports (height: 100dvh) {
+    .graph-wrapper {
+        width: min(100%, calc((100dvh - var(--header-h) - 38px) * 700 / 540));
+    }
+}
+
+.tray {
+    background: var(--md-surface-container-low);
+    border: 1.5px solid var(--md-outline-variant);
+    border-radius: 24px;
+    box-shadow: var(--md-elev-1);
+    padding: 12px 14px;
+}
