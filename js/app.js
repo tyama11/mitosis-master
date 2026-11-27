@@ -156,9 +156,20 @@ function init()       {
         startGame(state.difficulty);
     });
 
+    let muteClickTimes           = [];
     const handleMuteClick = ()       => {
         SOUND_FX.toggleMute();
         syncMuteButtons();
+        const now = Date.now();
+        muteClickTimes = muteClickTimes.filter((t) => now - t <= 3000);
+        muteClickTimes.push(now);
+        if (muteClickTimes.length >= 6) {
+            muteClickTimes = [];
+            (['cycle', 'sketch']         ).forEach((cat) => progress.unlockOni(cat));
+            updateDifficultyVisibility(true);
+            SOUND_FX.playClear(true);
+            showToast('👹 どこかでとびらがひらいたようだ…！');
+        }
     };
     els.homeMuteBtn.addEventListener('click', handleMuteClick);
     els.gameMuteBtn.addEventListener('click', handleMuteClick);
